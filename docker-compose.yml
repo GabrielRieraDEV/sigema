@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: sigema_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: sigema
+    ports:
+      - "5432:5432"
+    volumes:
+      # Montar nuestro script SQL para que se ejecute automáticamente al crear el contenedor
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/init.sql
+      # Si prefieres que persista la data, puedes descomentar la siguiente línea
+      # - pgdata:/var/lib/postgresql/data
+
+# volumes:
+#   pgdata:
