@@ -1,0 +1,101 @@
+<style>
+#erd1 { padding: 0.5rem 0; }
+#erd1 svg { width: 100%; height: auto; }
+#erd1 svg.erDiagram .divider path { stroke-opacity: 0.4; }
+#erd1 svg.erDiagram .row-rect-odd path,
+#erd1 svg.erDiagram .row-rect-odd rect,
+#erd1 svg.erDiagram .row-rect-even path,
+#erd1 svg.erDiagram .row-rect-even rect { stroke: none !important; }
+</style>
+<p style="font-size:13px;font-weight:500;color:var(--color-text-secondary);margin:0 0 8px;">Núcleo — bienes muebles y movimientos</p>
+<div id="erd1"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false, theme: 'base',
+  fontFamily: '"Anthropic Sans", sans-serif',
+  themeVariables: {
+    darkMode: dark, fontSize: '12px',
+    fontFamily: '"Anthropic Sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+    primaryColor: dark ? '#1e3a5f' : '#dbeafe',
+    primaryTextColor: dark ? '#93c5fd' : '#1e3a5f',
+    primaryBorderColor: dark ? '#2563eb' : '#3b82f6',
+    secondaryColor: dark ? '#1a3d2e' : '#dcfce7',
+    tertiaryColor: dark ? '#3d2a10' : '#fef9c3',
+  },
+});
+const diagram = `erDiagram
+  BIEN {
+    serial id PK
+    varchar codigo_activo UK
+    varchar codigo_nivel FK
+    text descripcion
+    varchar categoria_id FK
+    varchar marca
+    varchar modelo
+    varchar serial_bien
+    varchar color
+    varchar tipo
+    int num_piezas
+    varchar orden_compra
+    date fecha_compra
+    decimal precio_sin_iva
+    varchar moneda
+    int vida_util_meses
+    int departamento_id FK
+    varchar cuenta_contable FK
+    varchar estado
+    text observaciones
+    int creado_por FK
+    timestamp created_at
+  }
+  MOVIMIENTO {
+    serial id PK
+    int bien_id FK
+    varchar tipo_movimiento
+    int departamento_origen FK
+    int departamento_destino FK
+    varchar motivo
+    varchar responsable_faltante
+    int registrado_por FK
+    timestamp fecha_movimiento
+    text observaciones
+  }
+  FORMULARIO_BM {
+    serial id PK
+    varchar tipo_bm
+    int generado_por FK
+    timestamp fecha_generacion
+    varchar estado
+    varchar motivo_anulacion
+    jsonb parametros
+  }
+  BIEN ||--o{ MOVIMIENTO : "registra"
+  BIEN ||--o{ FORMULARIO_BM : "aparece en"
+`;
+const { svg } = await mermaid.render('erd1-svg', diagram);
+document.getElementById('erd1').innerHTML = svg;
+document.querySelectorAll('#erd1 svg.erDiagram .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0],nums[2],nums[4],nums[6]];
+  const ys = [nums[1],nums[3],nums[5],nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs)-x, h = Math.max(...ys)-y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  rect.setAttribute('x',x); rect.setAttribute('y',y);
+  rect.setAttribute('width',w); rect.setAttribute('height',h);
+  rect.setAttribute('rx','8');
+  for (const a of ['fill','stroke','stroke-width','class','style'])
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  firstPath.replaceWith(rect);
+});
+document.querySelectorAll('#erd1 svg.erDiagram .row-rect-odd path, #erd1 svg.erDiagram .row-rect-even path').forEach(p=>p.setAttribute('stroke','none'));
+</script>
