@@ -98,16 +98,16 @@ class MovimientoRepository:
             SELECT
                 m.id,
                 m.tipo_movimiento,
-                do.nombre  AS departamento_origen_nombre,
-                dd.nombre  AS departamento_destino_nombre,
+                d_orig.nombre  AS departamento_origen_nombre,
+                d_dest.nombre  AS departamento_destino_nombre,
                 m.motivo,
                 m.responsable_faltante,
                 u.nombre || ' ' || u.apellido AS registrado_por_nombre,
                 m.fecha_movimiento,
                 m.observaciones
             FROM movimiento m
-            LEFT JOIN departamento do ON m.departamento_origen  = do.id
-            LEFT JOIN departamento dd ON m.departamento_destino = dd.id
+            LEFT JOIN departamento d_orig ON m.departamento_origen  = d_orig.id
+            LEFT JOIN departamento d_dest ON m.departamento_destino = d_dest.id
             JOIN usuario u            ON m.registrado_por       = u.id
             WHERE m.bien_id = %s
             ORDER BY m.fecha_movimiento DESC
