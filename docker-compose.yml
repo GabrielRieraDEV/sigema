@@ -5,8 +5,8 @@ services:
     image: postgres:15-alpine
     container_name: sigema_db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_USER: sigema_user
+      POSTGRES_PASSWORD: sigema_pass
       POSTGRES_DB: sigema
     ports:
       - "5432:5432"
@@ -16,5 +16,5 @@ services:
       # Si prefieres que persista la data, puedes descomentar la siguiente línea
       # - pgdata:/var/lib/postgresql/data
 
-# volumes:
-#   pgdata:
+      # volumes:
+      #   pgdata:
