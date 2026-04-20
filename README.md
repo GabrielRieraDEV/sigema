@@ -221,8 +221,11 @@ psql -U postgres -f sql/schema.sql
 cp config.example.ini config.ini
 # Editar config.ini con los datos de tu BD local
 
-# 6. Ejecutar en modo desarrollo
-python src/main.py
+# 6. Opcional: Insertar datos de prueba
+psql -U postgres -d sigema -f dummy_data.sql
+
+# 7. Ejecutar en modo desarrollo (como módulo para evitar errores de importación)
+python -m src.main
 ```
 
 ---
@@ -244,8 +247,8 @@ La carpeta `docs/` contiene la documentación completa del proyecto:
 | Fase | Descripción | Estado |
 |---|---|---|
 | 1 | Levantamiento de información y SRS | ✅ Completada |
-| 2 | Diseño de base de datos y ERD | 🔄 En progreso |
-| 3 | Desarrollo Módulo A — Bienes Muebles | ⏳ Pendiente |
+| 2 | Diseño de base de datos y ERD | ✅ Completada |
+| 3 | Desarrollo Módulo A — Bienes Muebles | ✅ Completada |
 | 4 | Desarrollo formularios BM-1 al BM-4 | ⏳ Pendiente |
 | 5 | Desarrollo Módulo C — Administración | ⏳ Pendiente |
 | 6 | Migración de datos históricos | ⏳ Pendiente |

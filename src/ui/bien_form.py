@@ -11,7 +11,7 @@ from PyQt6.QtCore import QDate
 from PyQt6.QtWidgets import (
     QComboBox, QDateEdit, QDialog, QDoubleSpinBox, QFormLayout,
     QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-    QPushButton, QSpinBox, QTextEdit, QVBoxLayout, QWidget,
+    QPushButton, QScrollArea, QSpinBox, QTextEdit, QVBoxLayout, QWidget,
 )
 from src.core.bien_service import BienService
 
@@ -37,9 +37,17 @@ class BienFormDialog(QDialog):
     def _init_ui(self) -> None:
         titulo = "Nuevo Bien Mueble" if self._modo == "nuevo" else "Detalle del Bien"
         self.setWindowTitle(titulo)
+        self.resize(700, 750)
         self.setMinimumWidth(650)
-        self.setMinimumHeight(700)
-        layout = QVBoxLayout(self)
+
+        main_layout = QVBoxLayout(self)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+
+        content_widget = QWidget()
+        layout = QVBoxLayout(content_widget)
 
         # Identificación
         grp_id = QGroupBox("Identificación")
@@ -127,6 +135,9 @@ class BienFormDialog(QDialog):
 
         layout.addWidget(QLabel("(*) Campos obligatorios"))
 
+        scroll.setWidget(content_widget)
+        main_layout.addWidget(scroll)
+
         # Botones
         bl = QHBoxLayout()
         bl.addStretch()
@@ -137,7 +148,7 @@ class BienFormDialog(QDialog):
         btn_c = QPushButton("Cerrar" if self._modo == "ver" else "Cancelar")
         btn_c.clicked.connect(self.reject)
         bl.addWidget(btn_c)
-        layout.addLayout(bl)
+        main_layout.addLayout(bl)
 
     def _cargar_combos(self) -> None:
         self._cmb_categoria.clear()
