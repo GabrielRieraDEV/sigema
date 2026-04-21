@@ -1,5 +1,5 @@
 # SIGEMA
-### Sistema de Gestión de Almacén
+### Sistema de Gestión de Invetario
 **Instituto Autónomo Minas Bolívar**
 
 ---
