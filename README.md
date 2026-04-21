@@ -191,10 +191,13 @@ El sistema usa PostgreSQL 15 con 8 tablas:
 | `cuenta_contable` | Plan de cuentas 2-1-214-XX |
 | `auditoria` | Log completo de acciones del sistema |
 
-Para crear la base de datos manualmente:
+## 2. Base de datos (Usando Docker)
+
+1. Asegúrate de tener Docker instalado.
+2. Levanta el contenedor de PostgreSQL (esto crea la base de datos y aplica el `schema.sql` automáticamente):
 
 ```bash
-psql -U postgres -f sql/schema.sql
+docker-compose up -d
 ```
 
 ---
@@ -214,15 +217,18 @@ source venv/bin/activate   # Linux/Mac
 # 3. Instalar dependencias
 pip install -r requirements.txt
 
-# 4. Crear la base de datos local
-psql -U postgres -f sql/schema.sql
+# 4. Iniciar la base de datos local con Docker
+docker-compose up -d
 
 # 5. Configurar conexión
 cp config.example.ini config.ini
-# Editar config.ini con los datos de tu BD local
+# Editar config.ini (la configuración por defecto ya sirve para Docker)
 
 # 6. Opcional: Insertar datos de prueba
-psql -U postgres -d sigema -f dummy_data.sql
+# En Windows (PowerShell):
+Get-Content dummy_data.sql | docker exec -i sigema_db psql -U sigema_user -d sigema
+# En Linux/Mac o CMD:
+# docker exec -i sigema_db psql -U sigema_user -d sigema < dummy_data.sql
 
 # 7. Ejecutar en modo desarrollo (como módulo para evitar errores de importación)
 python -m src.main
