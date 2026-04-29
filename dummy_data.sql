@@ -1,7 +1,9 @@
-INSERT INTO departamento (id, codigo, nombre) VALUES
-(1, 'DEP-IT', 'Tecnología de Información'),
-(2, 'DEP-RRHH', 'Recursos Humanos'),
-(3, 'DEP-ADM', 'Administración')
+INSERT INTO departamento (id, codigo, nombre, parent_id) VALUES
+(1, 'DEP-IT', 'Tecnología de Información', NULL),
+(2, 'DEP-RRHH', 'Recursos Humanos', NULL),
+(3, 'DEP-ADM', 'Administración', NULL),
+(4, 'DEP-IT-SOP', 'Soporte Técnico', 1),
+(5, 'DEP-RRHH-REC', 'Reclutamiento y Selección', 2)
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('departamento_id_seq', (SELECT MAX(id) FROM departamento));

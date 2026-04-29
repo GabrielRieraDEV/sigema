@@ -44,8 +44,10 @@ class BienFormDialog(QDialog):
             self._bloquear_campos()
         elif self._modo == "nuevo":
             try:
-                siguiente = self._service.obtener_siguiente_codigo_activo()
-                self._txt_codigo_activo.setText(siguiente)
+                siguiente_activo = self._service.obtener_siguiente_codigo_activo()
+                self._txt_codigo_activo.setText(siguiente_activo)
+                siguiente_nivel = self._service.obtener_siguiente_codigo_nivel()
+                self._txt_codigo_nivel.setText(siguiente_nivel)
             except Exception:
                 pass
 

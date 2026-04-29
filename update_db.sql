@@ -16,3 +16,10 @@ ALTER TABLE bien ADD CONSTRAINT bien_estado_check CHECK (estado IN (
         '07) DESINCORPORADO EN DESUSO',
         'Faltante'
 ));
+
+INSERT INTO departamento (id, codigo, nombre, parent_id) VALUES
+(4, 'DEP-IT-SOP', 'Soporte Técnico', 1),
+(5, 'DEP-RRHH-REC', 'Reclutamiento y Selección', 2)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval('departamento_id_seq', (SELECT MAX(id) FROM departamento));

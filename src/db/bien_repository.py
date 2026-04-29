@@ -243,6 +243,23 @@ class BienRepository:
             
             return "ACT-0001"
 
+    def obtener_siguiente_codigo_nivel(self) -> str:
+        """Obtiene el siguiente código correlativo de nivel (ej. N-0004)."""
+        sql = "SELECT codigo_nivel FROM bien ORDER BY id DESC LIMIT 1"
+        with self._db.get_cursor() as cur:
+            cur.execute(sql)
+            row = cur.fetchone()
+            if not row or not row[0]:
+                return "N-0001"
+            
+            last_code = row[0]
+            parts = last_code.split("-")
+            if len(parts) == 2 and parts[1].isdigit():
+                next_num = int(parts[1]) + 1
+                return f"{parts[0]}-{next_num:04d}"
+            
+            return "N-0001"
+
     def listar_cuentas_contables(self) -> list[dict[str, Any]]:
         """Retorna todas las cuentas contables activas."""
         sql = """

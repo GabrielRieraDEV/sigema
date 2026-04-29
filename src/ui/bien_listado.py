@@ -125,7 +125,17 @@ class BienListadoWidget(QWidget):
         # Estado
         h_layout.addWidget(QLabel("Estado:"))
         self._filtro_estado = QComboBox()
-        self._filtro_estado.addItems(["Todos", "Activo", "En desuso", "Faltante"])
+        self._filtro_estado.addItems([
+            "Todos",
+            "01) OPERATIVO, EN USO, EXCELENTE ESTADO",
+            "02) OPERATIVO, EN USO PERO REQUIERE REPARACIÓN",
+            "03) OPERATIVO, SIN USO, EN EXCELENTE ESTADO",
+            "04) OPERATIVO, SIN USO, PERO REQUIERE REPARACIÓN",
+            "05) INOPERATIVO, PERO RECUPERABLE",
+            "06) INOPERATIVO, IRRECUPERABLE",
+            "07) DESINCORPORADO EN DESUSO",
+            "Faltante"
+        ])
         h_layout.addWidget(self._filtro_estado)
 
         # Botón buscar
@@ -168,9 +178,15 @@ class BienListadoWidget(QWidget):
         self._filtro_departamento.clear()
         self._filtro_departamento.addItem("Todos", None)
         try:
-            departamentos = self._service.obtener_departamentos()
-            for dep in departamentos:
-                self._filtro_departamento.addItem(dep["nombre"], dep["id"])
+            deps = self._service.obtener_departamentos()
+            padres = [d for d in deps if not d.get("parent_id")]
+            hijos = [d for d in deps if d.get("parent_id")]
+            
+            for p in padres:
+                self._filtro_departamento.addItem(p["nombre"], p["id"])
+                for h in hijos:
+                    if h["parent_id"] == p["id"]:
+                        self._filtro_departamento.addItem("  └─ " + h["nombre"], h["id"])
         except Exception:
             pass  # Si falla, el combo queda solo con "Todos"
 

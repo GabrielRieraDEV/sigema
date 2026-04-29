@@ -258,6 +258,10 @@ class BienService:
         """Obtiene el siguiente código correlativo de bien (ej. ACT-0016)."""
         return self._bien_repo.obtener_siguiente_codigo_activo()
 
+    def obtener_siguiente_codigo_nivel(self) -> str:
+        """Obtiene el siguiente código correlativo de nivel (ej. N-0004)."""
+        return self._bien_repo.obtener_siguiente_codigo_nivel()
+
     # ------------------------------------------------------------------
     # Catálogos (para poblar combos en la UI)
     # ------------------------------------------------------------------

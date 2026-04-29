@@ -166,19 +166,20 @@ class BMBase:
         logo_path = "assets/logo.png"
         if os.path.exists(logo_path):
             try:
-                img = Image(logo_path, width=3*cm, height=2*cm, kind='proportional')
+                img = Image(logo_path, width=4.5*cm, height=2.5*cm, kind='proportional')
                 img.hAlign = 'LEFT'
                 izq_elements.append(img)
             except Exception:
                 pass
 
-        # Bloque izquierdo: institución
-        izq_text = Paragraph(
-            f"<b>{GOBERNACION}</b><br/>{LEMA}<br/><br/>"
-            f"<b>{INSTITUCION}</b>",
-            self.style_small,
-        )
-        izq_elements.append(izq_text)
+        # Si no hay logo, mostramos el texto como fallback
+        if not izq_elements:
+            izq_text = Paragraph(
+                f"<b>{GOBERNACION}</b><br/>{LEMA}<br/><br/>"
+                f"<b>{INSTITUCION}</b>",
+                self.style_small,
+            )
+            izq_elements.append(izq_text)
 
         # Bloque centro: título del formulario
         centro = Paragraph(
