@@ -159,12 +159,26 @@ class BMBase:
         list
             Lista de flowables (Table + Spacer) para el encabezado.
         """
+        import os
+        from reportlab.platypus import Image
+
+        izq_elements = []
+        logo_path = "assets/logo.png"
+        if os.path.exists(logo_path):
+            try:
+                img = Image(logo_path, width=3*cm, height=2*cm, kind='proportional')
+                img.hAlign = 'LEFT'
+                izq_elements.append(img)
+            except Exception:
+                pass
+
         # Bloque izquierdo: institución
-        izq = Paragraph(
+        izq_text = Paragraph(
             f"<b>{GOBERNACION}</b><br/>{LEMA}<br/><br/>"
             f"<b>{INSTITUCION}</b>",
             self.style_small,
         )
+        izq_elements.append(izq_text)
 
         # Bloque centro: título del formulario
         centro = Paragraph(
@@ -181,7 +195,7 @@ class BMBase:
         )
 
         header_table = Table(
-            [[izq, centro, der]],
+            [[izq_elements, centro, der]],
             colWidths=[USABLE_WIDTH * 0.25, USABLE_WIDTH * 0.50,
                        USABLE_WIDTH * 0.25],
         )

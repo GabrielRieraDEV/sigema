@@ -39,6 +39,7 @@ CREATE TABLE departamento (
     codigo VARCHAR(20) UNIQUE NOT NULL,
     nombre VARCHAR(150) NOT NULL,
     descripcion TEXT,
+    parent_id INT REFERENCES departamento(id),
     activo BOOLEAN NOT NULL DEFAULT TRUE
 );
 
@@ -79,7 +80,16 @@ CREATE TABLE bien (
     vida_util_meses INT NOT NULL DEFAULT 60,
     departamento_id INT NOT NULL REFERENCES departamento(id),
     cuenta_contable VARCHAR(20) NOT NULL REFERENCES cuenta_contable(codigo),
-    estado VARCHAR(20) NOT NULL CHECK (estado IN ('Activo', 'En desuso', 'Faltante')),
+    estado VARCHAR(100) NOT NULL CHECK (estado IN (
+        '01) OPERATIVO, EN USO, EXCELENTE ESTADO',
+        '02) OPERATIVO, EN USO PERO REQUIERE REPARACIÓN',
+        '03) OPERATIVO, SIN USO, EN EXCELENTE ESTADO',
+        '04) OPERATIVO, SIN USO, PERO REQUIERE REPARACIÓN',
+        '05) INOPERATIVO, PERO RECUPERABLE',
+        '06) INOPERATIVO, IRRECUPERABLE',
+        '07) DESINCORPORADO EN DESUSO',
+        'Faltante'
+    )),
     observaciones TEXT,
     creado_por INT REFERENCES usuario(id),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP

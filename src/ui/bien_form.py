@@ -18,7 +18,16 @@ from src.core.bien_service import BienService
 class BienFormDialog(QDialog):
     _MONEDAS = ["Bolívares", "Dólares"]
     _TIPOS = ["", "Administrativo", "Ejecutivo", "Operativo", "Técnico"]
-    _ESTADOS = ["Activo", "En desuso", "Faltante"]
+    _ESTADOS = [
+        "01) OPERATIVO, EN USO, EXCELENTE ESTADO",
+        "02) OPERATIVO, EN USO PERO REQUIERE REPARACIÓN",
+        "03) OPERATIVO, SIN USO, EN EXCELENTE ESTADO",
+        "04) OPERATIVO, SIN USO, PERO REQUIERE REPARACIÓN",
+        "05) INOPERATIVO, PERO RECUPERABLE",
+        "06) INOPERATIVO, IRRECUPERABLE",
+        "07) DESINCORPORADO EN DESUSO",
+        "Faltante"
+    ]
 
     def __init__(self, bien_service: BienService, usuario_id: int,
                  modo: str = "nuevo", bien_data: dict[str, Any] | None = None,
@@ -33,6 +42,12 @@ class BienFormDialog(QDialog):
         if self._modo == "ver":
             self._cargar_datos()
             self._bloquear_campos()
+        elif self._modo == "nuevo":
+            try:
+                siguiente = self._service.obtener_siguiente_codigo_activo()
+                self._txt_codigo_activo.setText(siguiente)
+            except Exception:
+                pass
 
     def _init_ui(self) -> None:
         titulo = "Nuevo Bien Mueble" if self._modo == "nuevo" else "Detalle del Bien"
@@ -159,8 +174,15 @@ class BienFormDialog(QDialog):
             pass
         self._cmb_departamento.clear()
         try:
-            for dep in self._service.obtener_departamentos():
-                self._cmb_departamento.addItem(dep["nombre"], dep["id"])
+            deps = self._service.obtener_departamentos()
+            padres = [d for d in deps if not d.get("parent_id")]
+            hijos = [d for d in deps if d.get("parent_id")]
+            
+            for p in padres:
+                self._cmb_departamento.addItem(p["nombre"], p["id"])
+                for h in hijos:
+                    if h["parent_id"] == p["id"]:
+                        self._cmb_departamento.addItem("  └─ " + h["nombre"], h["id"])
         except Exception:
             pass
         self._cmb_cuenta.clear()

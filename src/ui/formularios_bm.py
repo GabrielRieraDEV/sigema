@@ -202,12 +202,18 @@ class FormulariosBMWidget(QWidget):
     # Carga de datos
     # ------------------------------------------------------------------
     def _cargar_departamentos(self) -> None:
-        """Carga los departamentos en el combo."""
+        """Carga los departamentos en el combo respetando jerarquía."""
         self._cmb_departamento.clear()
         try:
-            deptos = self._service.obtener_departamentos()
-            for dep in deptos:
-                self._cmb_departamento.addItem(dep["nombre"], dep["id"])
+            deps = self._service.obtener_departamentos()
+            padres = [d for d in deps if not d.get("parent_id")]
+            hijos = [d for d in deps if d.get("parent_id")]
+            
+            for p in padres:
+                self._cmb_departamento.addItem(p["nombre"], p["id"])
+                for h in hijos:
+                    if h["parent_id"] == p["id"]:
+                        self._cmb_departamento.addItem("  └─ " + h["nombre"], h["id"])
         except Exception:
             pass
 

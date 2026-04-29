@@ -254,6 +254,10 @@ class BienService:
         """Obtiene un bien por su id."""
         return self._bien_repo.buscar_por_id(bien_id)
 
+    def obtener_siguiente_codigo_activo(self) -> str:
+        """Obtiene el siguiente código correlativo de bien (ej. ACT-0016)."""
+        return self._bien_repo.obtener_siguiente_codigo_activo()
+
     # ------------------------------------------------------------------
     # Catálogos (para poblar combos en la UI)
     # ------------------------------------------------------------------

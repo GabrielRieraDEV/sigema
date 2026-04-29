@@ -7,6 +7,7 @@ el módulo de Bienes Muebles y el módulo de Formularios BM.
 """
 import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QTabWidget
+from PyQt6.QtGui import QIcon
 from src.db.connection import DBConnection
 from src.db.bien_repository import BienRepository
 from src.db.movimiento_repository import MovimientoRepository
@@ -46,6 +47,7 @@ def main() -> None:
     window = QMainWindow()
     window.setWindowTitle(
         "SIGEMA — Sistema de Gestión de Bienes Muebles")
+    window.setWindowIcon(QIcon("assets/logo.png"))
     window.resize(1024, 640)
 
     # --- Pestañas ---

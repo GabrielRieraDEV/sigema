@@ -220,11 +220,28 @@ class BienRepository:
             return self._rows_to_list(cur, cur.fetchall())
 
     def listar_departamentos(self) -> list[dict[str, Any]]:
-        """Retorna todos los departamentos activos."""
-        sql = "SELECT id, nombre FROM departamento WHERE activo = TRUE ORDER BY nombre"
+        """Retorna todos los departamentos activos con su jerarquía."""
+        sql = "SELECT id, nombre, parent_id FROM departamento WHERE activo = TRUE ORDER BY parent_id NULLS FIRST, nombre"
         with self._db.get_cursor() as cur:
             cur.execute(sql)
             return self._rows_to_list(cur, cur.fetchall())
+
+    def obtener_siguiente_codigo_activo(self) -> str:
+        """Obtiene el siguiente código correlativo de bien (ej. ACT-0016)."""
+        sql = "SELECT codigo_activo FROM bien ORDER BY id DESC LIMIT 1"
+        with self._db.get_cursor() as cur:
+            cur.execute(sql)
+            row = cur.fetchone()
+            if not row or not row[0]:
+                return "ACT-0001"
+            
+            last_code = row[0]
+            parts = last_code.split("-")
+            if len(parts) == 2 and parts[1].isdigit():
+                next_num = int(parts[1]) + 1
+                return f"{parts[0]}-{next_num:04d}"
+            
+            return "ACT-0001"
 
     def listar_cuentas_contables(self) -> list[dict[str, Any]]:
         """Retorna todas las cuentas contables activas."""
