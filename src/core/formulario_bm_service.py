@@ -70,7 +70,7 @@ class FormularioBMService:
                 "departamento_nombre": depto["nombre"],
                 "total_bienes": len(bienes),
             }
-            self._repo.registrar("BM-1", usuario_id, parametros)
+            self._repo.registrar("BM-1", usuario_id, parametros, pdf_bytes)
 
             return (True, "BM-1 generado exitosamente.", pdf_bytes)
 
@@ -121,7 +121,7 @@ class FormularioBMService:
                 "concepto": concepto,
                 "total_movimientos": len(movimientos),
             }
-            self._repo.registrar("BM-2", usuario_id, parametros)
+            self._repo.registrar("BM-2", usuario_id, parametros, pdf_bytes)
 
             return (True, "BM-2 generado exitosamente.", pdf_bytes)
 
@@ -159,7 +159,7 @@ class FormularioBMService:
                 "departamento_nombre": depto["nombre"],
                 "total_faltantes": len(faltantes),
             }
-            self._repo.registrar("BM-3", usuario_id, parametros)
+            self._repo.registrar("BM-3", usuario_id, parametros, pdf_bytes)
 
             return (True, "BM-3 generado exitosamente.", pdf_bytes)
 
@@ -198,7 +198,7 @@ class FormularioBMService:
                 "anio": anio,
                 **resumen,
             }
-            self._repo.registrar("BM-4", usuario_id, parametros)
+            self._repo.registrar("BM-4", usuario_id, parametros, pdf_bytes)
 
             return (True, "BM-4 generado exitosamente.", pdf_bytes)
 
@@ -241,6 +241,10 @@ class FormularioBMService:
     ) -> list[dict[str, Any]]:
         """Lista historial de formularios emitidos."""
         return self._repo.listar_todos(tipo_bm)
+
+    def obtener_pdf_por_id(self, formulario_id: int) -> bytes | None:
+        """Obtiene los bytes del PDF generado previamente."""
+        return self._repo.obtener_pdf_por_id(formulario_id)
 
     # ------------------------------------------------------------------
     # Catálogos (para poblar combos en la UI)

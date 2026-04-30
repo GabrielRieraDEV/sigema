@@ -123,6 +123,10 @@ class FormulariosBMWidget(QWidget):
         self._btn_anular.clicked.connect(self._on_anular)
         btn_hist_layout.addWidget(self._btn_anular)
 
+        btn_descargar = QPushButton("Ver / Descargar PDF")
+        btn_descargar.clicked.connect(self._on_descargar_pdf)
+        btn_hist_layout.addWidget(btn_descargar)
+
         btn_actualizar = QPushButton("Actualizar")
         btn_actualizar.clicked.connect(self._actualizar_historial)
         btn_hist_layout.addWidget(btn_actualizar)
@@ -295,30 +299,33 @@ class FormulariosBMWidget(QWidget):
 
         self._ultimo_pdf = pdf_bytes
 
-        # Diálogo para guardar
-        nombre_default = f"{tipo.replace('-', '')}_{dept_id}.pdf"
-        filepath, _ = QFileDialog.getSaveFileName(
-            self,
-            "Guardar formulario BM",
-            nombre_default,
-            "Archivos PDF (*.pdf)",
-        )
+        self._ultimo_pdf = pdf_bytes
 
-        if filepath:
-            try:
-                with open(filepath, "wb") as f:
-                    f.write(pdf_bytes)
-                QMessageBox.information(
-                    self,
-                    "Formulario generado",
-                    f"{mensaje}\n\nGuardado en:\n{filepath}",
-                )
-            except IOError as exc:
-                QMessageBox.critical(
-                    self,
-                    "Error",
-                    f"No se pudo guardar el archivo:\n{exc}",
-                )
+        # Vista Previa (Guardar en temporal y abrir)
+        try:
+            tmp = tempfile.NamedTemporaryFile(
+                suffix=".pdf", delete=False, prefix="sigema_preview_"
+            )
+            tmp.write(pdf_bytes)
+            tmp.close()
+
+            # En Windows, abrir el archivo
+            if hasattr(os, 'startfile'):
+                os.startfile(tmp.name)  # type: ignore[attr-defined]
+            else:
+                subprocess.run(["xdg-open", tmp.name], check=True)
+
+            QMessageBox.information(
+                self,
+                "Formulario generado",
+                f"{mensaje}\n\nEl PDF se ha guardado y abierto como vista previa.",
+            )
+        except Exception as exc:
+            QMessageBox.warning(
+                self,
+                "Vista previa",
+                f"No se pudo abrir la vista previa:\n{exc}",
+            )
 
         self._actualizar_historial()
 
@@ -452,3 +459,58 @@ class FormulariosBMWidget(QWidget):
             QMessageBox.warning(self, "Error", mensaje)
 
         self._actualizar_historial()
+
+    # ------------------------------------------------------------------
+    # Descargar del historial
+    # ------------------------------------------------------------------
+    def _on_descargar_pdf(self) -> None:
+        """Descarga el PDF histórico guardado en la base de datos."""
+        fila = self._tabla.currentRow()
+        if fila < 0 or fila >= len(self._historial):
+            QMessageBox.warning(
+                self,
+                "Selección requerida",
+                "Seleccione un formulario de la tabla.",
+            )
+            return
+
+        formulario = self._historial[fila]
+        form_id = formulario.get("id")
+        
+        pdf_bytes = self._service.obtener_pdf_por_id(form_id)
+        if not pdf_bytes:
+            QMessageBox.information(
+                self,
+                "PDF No Disponible",
+                "El PDF de este formulario no está disponible en la base de datos.\n"
+                "(Probablemente fue generado antes de implementar esta función).",
+            )
+            return
+
+        tipo = formulario.get("tipo_bm", "BM")
+        nombre_default = f"{tipo.replace('-', '')}_historial_{form_id}.pdf"
+        filepath, _ = QFileDialog.getSaveFileName(
+            self,
+            "Guardar formulario BM Histórico",
+            nombre_default,
+            "Archivos PDF (*.pdf)",
+        )
+
+        if filepath:
+            try:
+                with open(filepath, "wb") as f:
+                    f.write(pdf_bytes)
+                
+                # Intentar abrir la vista previa
+                if hasattr(os, 'startfile'):
+                    os.startfile(filepath)  # type: ignore[attr-defined]
+                else:
+                    subprocess.run(["xdg-open", filepath], check=True)
+
+            except IOError as exc:
+                QMessageBox.critical(
+                    self,
+                    "Error",
+                    f"No se pudo guardar el archivo:\n{exc}",
+                )
+

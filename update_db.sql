@@ -23,3 +23,5 @@ INSERT INTO departamento (id, codigo, nombre, parent_id) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('departamento_id_seq', (SELECT MAX(id) FROM departamento));
+
+ALTER TABLE formulario_bm ADD COLUMN IF NOT EXISTS archivo_pdf BYTEA;

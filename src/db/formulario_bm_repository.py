@@ -43,6 +43,7 @@ class FormularioBMRepository:
         tipo_bm: str,
         generado_por: int,
         parametros: dict[str, Any] | None = None,
+        archivo_pdf: bytes | None = None,
     ) -> int:
         """Inserta un formulario con estado 'Vigente' y retorna su id.
 
@@ -54,15 +55,17 @@ class FormularioBMRepository:
             FK al usuario que genera el formulario.
         parametros : dict | None
             Parámetros usados para la generación (se guardan como JSONB).
+        archivo_pdf : bytes | None
+            Bytes del PDF generado para poder visualizarlo o descargarlo.
         """
         sql = """
-            INSERT INTO formulario_bm (tipo_bm, generado_por, estado, parametros)
-            VALUES (%s, %s, 'Vigente', %s)
+            INSERT INTO formulario_bm (tipo_bm, generado_por, estado, parametros, archivo_pdf)
+            VALUES (%s, %s, 'Vigente', %s, %s)
             RETURNING id
         """
         params_json = json.dumps(parametros) if parametros else None
         with self._db.get_cursor() as cur:
-            cur.execute(sql, (tipo_bm, generado_por, params_json))
+            cur.execute(sql, (tipo_bm, generado_por, params_json, archivo_pdf))
             return cur.fetchone()[0]
 
     def anular(
@@ -126,6 +129,14 @@ class FormularioBMRepository:
         with self._db.get_cursor() as cur:
             cur.execute(sql, params)
             return self._rows_to_list(cur, cur.fetchall())
+
+    def obtener_pdf_por_id(self, formulario_id: int) -> bytes | None:
+        """Devuelve los bytes del PDF de un formulario específico."""
+        sql = "SELECT archivo_pdf FROM formulario_bm WHERE id = %s"
+        with self._db.get_cursor() as cur:
+            cur.execute(sql, (formulario_id,))
+            row = cur.fetchone()
+            return bytes(row[0]) if row and row[0] else None
 
     # ------------------------------------------------------------------
     # Queries de datos para generación de formularios

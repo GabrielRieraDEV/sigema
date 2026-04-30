@@ -115,7 +115,8 @@ CREATE TABLE formulario_bm (
     fecha_generacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     estado VARCHAR(20) NOT NULL CHECK (estado IN ('Vigente', 'Anulado')),
     motivo_anulacion VARCHAR(255),
-    parametros JSONB
+    parametros JSONB,
+    archivo_pdf BYTEA
 );
 
 
