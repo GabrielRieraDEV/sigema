@@ -6,8 +6,9 @@ los servicios de negocio y la ventana principal con pestañas para
 el módulo de Bienes Muebles y el módulo de Formularios BM.
 """
 import sys
-from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QTabWidget
-from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout, QLabel
+from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtCore import Qt
 from src.db.connection import DBConnection
 from src.db.bien_repository import BienRepository
 from src.db.movimiento_repository import MovimientoRepository
@@ -50,6 +51,26 @@ def main() -> None:
     window.setWindowIcon(QIcon("assets/logo.png"))
     window.resize(1024, 640)
 
+    # --- Layout Principal y Header ---
+    main_widget = QWidget()
+    main_layout = QVBoxLayout(main_widget)
+    main_layout.setContentsMargins(10, 10, 10, 10)
+
+    header_layout = QHBoxLayout()
+    logo_label = QLabel()
+    pixmap = QPixmap("assets/logo.png")
+    if not pixmap.isNull():
+        # Escalar manteniendo la proporción (altura de 80px para que no quite mucho espacio vertical)
+        logo_label.setPixmap(pixmap.scaledToHeight(80, Qt.TransformationMode.SmoothTransformation))
+    header_layout.addWidget(logo_label)
+
+    title_label = QLabel("<b>SIGEMA</b><br>Sistema de Gestión de Bienes Muebles")
+    title_label.setStyleSheet("font-size: 18px; color: #1B3A5C;")
+    header_layout.addWidget(title_label)
+    header_layout.addStretch()
+
+    main_layout.addLayout(header_layout)
+
     # --- Pestañas ---
     tabs = QTabWidget()
 
@@ -67,7 +88,8 @@ def main() -> None:
     )
     tabs.addTab(formularios, "Formularios BM")
 
-    window.setCentralWidget(tabs)
+    main_layout.addWidget(tabs)
+    window.setCentralWidget(main_widget)
     window.show()
 
     # --- Ejecución ---
