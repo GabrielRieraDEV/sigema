@@ -48,7 +48,7 @@ def main() -> None:
     window = QMainWindow()
     window.setWindowTitle(
         "SIGEMA — Sistema de Gestión de Bienes Muebles")
-    window.setWindowIcon(QIcon("assets/logo.png"))
+    window.setWindowIcon(QIcon("assets/icono .png"))
     window.resize(1024, 640)
 
     # --- Layout Principal y Header ---

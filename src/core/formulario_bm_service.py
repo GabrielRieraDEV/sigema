@@ -248,10 +248,10 @@ class FormularioBMService:
     def obtener_departamentos(self) -> list[dict[str, Any]]:
         """Retorna departamentos activos para combo."""
         sql = """
-            SELECT id, nombre
+            SELECT id, nombre, parent_id
               FROM departamento
              WHERE activo = TRUE
-             ORDER BY nombre
+             ORDER BY parent_id NULLS FIRST, nombre
         """
         with self._repo._db.get_cursor() as cur:
             cur.execute(sql)
