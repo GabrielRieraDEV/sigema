@@ -33,13 +33,13 @@ class FormularioBMService:
         self,
         departamento_id: int,
         usuario_id: int,
-    ) -> tuple[bool, str, bytes | None]:
+    ) -> tuple[bool, str, bytes | None, dict[str, Any] | None]:
         """Genera BM-1: Inventario de Bienes Muebles.
 
         Returns
         -------
-        tuple[bool, str, bytes | None]
-            (éxito, mensaje, bytes_del_pdf)
+        tuple[bool, str, bytes | None, dict | None]
+            (éxito, mensaje, bytes_del_pdf, parametros)
         """
         try:
             # Obtener datos
@@ -56,6 +56,7 @@ class FormularioBMService:
                     "No hay bienes activos en este departamento para "
                     "generar el BM-1.",
                     None,
+                    None,
                 )
 
             # Generar PDF
@@ -64,18 +65,17 @@ class FormularioBMService:
             generador.generar(buffer, bienes, depto)
             pdf_bytes = buffer.getvalue()
 
-            # Registrar en BD (RN-09)
+            # Registrar en BD se hará luego (RN-09 pospuesta a confirmación)
             parametros = {
                 "departamento_id": departamento_id,
                 "departamento_nombre": depto["nombre"],
                 "total_bienes": len(bienes),
             }
-            self._repo.registrar("BM-1", usuario_id, parametros, pdf_bytes)
 
-            return (True, "BM-1 generado exitosamente.", pdf_bytes)
+            return (True, "BM-1 generado para vista previa.", pdf_bytes, parametros)
 
         except Exception as exc:
-            return (False, f"Error al generar BM-1: {exc}", None)
+            return (False, f"Error al generar BM-1: {exc}", None, None)
 
     def generar_bm2(
         self,
@@ -84,7 +84,7 @@ class FormularioBMService:
         anio: int,
         concepto: str | None,
         usuario_id: int,
-    ) -> tuple[bool, str, bytes | None]:
+    ) -> tuple[bool, str, bytes | None, dict[str, Any] | None]:
         """Genera BM-2: Relación de Movimiento de Bienes Muebles."""
         try:
             depto = self._repo.obtener_departamento(departamento_id)
@@ -106,6 +106,7 @@ class FormularioBMService:
                     False,
                     "No hay movimientos en el período seleccionado.",
                     None,
+                    None,
                 )
 
             buffer = io.BytesIO()
@@ -121,18 +122,17 @@ class FormularioBMService:
                 "concepto": concepto,
                 "total_movimientos": len(movimientos),
             }
-            self._repo.registrar("BM-2", usuario_id, parametros, pdf_bytes)
 
-            return (True, "BM-2 generado exitosamente.", pdf_bytes)
+            return (True, "BM-2 generado para vista previa.", pdf_bytes, parametros)
 
         except Exception as exc:
-            return (False, f"Error al generar BM-2: {exc}", None)
+            return (False, f"Error al generar BM-2: {exc}", None, None)
 
     def generar_bm3(
         self,
         departamento_id: int,
         usuario_id: int,
-    ) -> tuple[bool, str, bytes | None]:
+    ) -> tuple[bool, str, bytes | None, dict[str, Any] | None]:
         """Genera BM-3: Bienes Muebles Faltantes (Concepto 60)."""
         try:
             depto = self._repo.obtener_departamento(departamento_id)
@@ -147,6 +147,7 @@ class FormularioBMService:
                     "No hay bienes faltantes (Concepto 60) en este "
                     "departamento.",
                     None,
+                    None,
                 )
 
             buffer = io.BytesIO()
@@ -159,12 +160,11 @@ class FormularioBMService:
                 "departamento_nombre": depto["nombre"],
                 "total_faltantes": len(faltantes),
             }
-            self._repo.registrar("BM-3", usuario_id, parametros, pdf_bytes)
 
-            return (True, "BM-3 generado exitosamente.", pdf_bytes)
+            return (True, "BM-3 generado para vista previa.", pdf_bytes, parametros)
 
         except Exception as exc:
-            return (False, f"Error al generar BM-3: {exc}", None)
+            return (False, f"Error al generar BM-3: {exc}", None, None)
 
     def generar_bm4(
         self,
@@ -172,7 +172,7 @@ class FormularioBMService:
         mes: int,
         anio: int,
         usuario_id: int,
-    ) -> tuple[bool, str, bytes | None]:
+    ) -> tuple[bool, str, bytes | None, dict[str, Any] | None]:
         """Genera BM-4: Resumen de la Cuenta de Bienes Muebles.
 
         Aplica RN-08: solo se genera al cierre de mes.
@@ -198,12 +198,19 @@ class FormularioBMService:
                 "anio": anio,
                 **resumen,
             }
-            self._repo.registrar("BM-4", usuario_id, parametros, pdf_bytes)
 
-            return (True, "BM-4 generado exitosamente.", pdf_bytes)
+            return (True, "BM-4 generado para vista previa.", pdf_bytes, parametros)
 
         except Exception as exc:
-            return (False, f"Error al generar BM-4: {exc}", None)
+            return (False, f"Error al generar BM-4: {exc}", None, None)
+
+    def guardar_formulario(self, tipo_bm: str, usuario_id: int, parametros: dict[str, Any], pdf_bytes: bytes) -> tuple[bool, str]:
+        """Guarda permanentemente el formulario en la BD (RN-09)."""
+        try:
+            self._repo.registrar(tipo_bm, usuario_id, parametros, pdf_bytes)
+            return (True, f"{tipo_bm} registrado y emitido permanentemente.")
+        except Exception as exc:
+            return (False, f"Error al guardar {tipo_bm}: {exc}")
 
     # ------------------------------------------------------------------
     # Gestión de formularios emitidos (RN-09)

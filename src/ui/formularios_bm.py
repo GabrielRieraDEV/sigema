@@ -291,13 +291,11 @@ class FormulariosBMWidget(QWidget):
             return
 
         # Llamar al servicio según el tipo
-        ok, mensaje, pdf_bytes = self._generar_segun_tipo(tipo, dept_id)
+        ok, mensaje, pdf_bytes, parametros = self._generar_segun_tipo(tipo, dept_id)
 
-        if not ok:
+        if not ok or pdf_bytes is None or parametros is None:
             QMessageBox.warning(self, "Error", mensaje)
             return
-
-        self._ultimo_pdf = pdf_bytes
 
         self._ultimo_pdf = pdf_bytes
 
@@ -315,11 +313,24 @@ class FormulariosBMWidget(QWidget):
             else:
                 subprocess.run(["xdg-open", tmp.name], check=True)
 
-            QMessageBox.information(
+            # Pedir confirmación (RN-09)
+            respuesta = QMessageBox.question(
                 self,
-                "Formulario generado",
-                f"{mensaje}\n\nEl PDF se ha guardado y abierto como vista previa.",
+                "Confirmar Emisión",
+                f"Se ha abierto una vista previa del documento en su visor de PDF.\n\n¿Desea GUARDAR Y EMITIR permanentemente este formulario {tipo}?\n(RN-09: Esta acción es irreversible)",
+                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Save
             )
+
+            if respuesta == QMessageBox.StandardButton.Save:
+                guardado, msg_guardado = self._service.guardar_formulario(tipo, self._usuario_id, parametros, pdf_bytes)
+                if guardado:
+                    QMessageBox.information(self, "Emitido", msg_guardado)
+                else:
+                    QMessageBox.warning(self, "Error al guardar", msg_guardado)
+            else:
+                QMessageBox.information(self, "Cancelado", "El formulario no ha sido guardado ni emitido.")
+
         except Exception as exc:
             QMessageBox.warning(
                 self,
@@ -331,7 +342,7 @@ class FormulariosBMWidget(QWidget):
 
     def _generar_segun_tipo(
         self, tipo: str, dept_id: int
-    ) -> tuple[bool, str, bytes | None]:
+    ) -> tuple[bool, str, bytes | None, dict[str, Any] | None]:
         """Despacha la generación al método correcto del servicio."""
         if tipo == "BM-1":
             return self._service.generar_bm1(dept_id, self._usuario_id)
@@ -355,7 +366,7 @@ class FormulariosBMWidget(QWidget):
                 dept_id, mes, anio, self._usuario_id
             )
 
-        return (False, f"Tipo de formulario '{tipo}' no reconocido.", None)
+        return (False, f"Tipo de formulario '{tipo}' no reconocido.", None, None)
 
     # ------------------------------------------------------------------
     # Impresión directa
@@ -371,7 +382,7 @@ class FormulariosBMWidget(QWidget):
             )
             return
 
-        ok, mensaje, pdf_bytes = self._generar_segun_tipo(tipo, dept_id)
+        ok, mensaje, pdf_bytes, parametros = self._generar_segun_tipo(tipo, dept_id)
 
         if not ok:
             QMessageBox.warning(self, "Error", mensaje)
@@ -388,11 +399,23 @@ class FormulariosBMWidget(QWidget):
             # En Windows, usar el comando de impresión del sistema
             os.startfile(tmp.name, "print")  # type: ignore[attr-defined]
 
-            QMessageBox.information(
+            # Pedir confirmación (RN-09)
+            respuesta = QMessageBox.question(
                 self,
-                "Impresión",
-                f"{mensaje}\n\nEl documento se envió a la impresora.",
+                "Confirmar Emisión",
+                f"El documento ha sido enviado a la impresora.\n\n¿Desea GUARDAR Y EMITIR permanentemente este formulario {tipo}?\n(RN-09: Esta acción es irreversible)",
+                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Save
             )
+
+            if respuesta == QMessageBox.StandardButton.Save:
+                guardado, msg_guardado = self._service.guardar_formulario(tipo, self._usuario_id, parametros, pdf_bytes) # type: ignore
+                if guardado:
+                    QMessageBox.information(self, "Emitido", msg_guardado)
+                else:
+                    QMessageBox.warning(self, "Error al guardar", msg_guardado)
+            else:
+                QMessageBox.information(self, "Cancelado", "El formulario no ha sido guardado ni emitido.")
         except AttributeError:
             # Si no estamos en Windows, intentar con lpr
             try:
