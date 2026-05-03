@@ -14,7 +14,7 @@ from pathlib import Path
 
 import psycopg2
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont, QPixmap
+from PyQt6.QtGui import QFont, QPixmap, QIcon
 from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -60,6 +60,7 @@ class SetupInicialDialog(QDialog):
         self.setWindowFlags(
             Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint
         )
+        self.setWindowIcon(QIcon("assets/icono .png"))
         self._config_path = _config_path()
         self._setup_ui()
         self._cargar_valores_existentes()
@@ -184,6 +185,14 @@ class SetupInicialDialog(QDialog):
             "QPushButton { background:#1B7F3A; color:white; font-weight:bold;"
             " padding:6px 16px; border-radius:4px; }"
             "QPushButton:hover { background:#238C47; }"
+        )
+        self._btn_box.button(QDialogButtonBox.StandardButton.Cancel).setText(
+            "✖ Cancelar"
+        )
+        self._btn_box.button(QDialogButtonBox.StandardButton.Cancel).setStyleSheet(
+            "QPushButton { background:#CC0000; color:white; font-weight:bold;"
+            " padding:6px 16px; border-radius:4px; }"
+            "QPushButton:hover { background:#FF3333; }"
         )
         self._btn_box.accepted.connect(self._guardar)
         self._btn_box.rejected.connect(self.reject)

@@ -144,8 +144,35 @@ class MainWindow(QMainWindow):
         header_layout.addWidget(user_lbl)
         main_layout.addLayout(header_layout)
 
-        # ── Pestañas ────────────────────────────────────────────────────
+        # ── Pestañas (Diseño Premium) ───────────────────────────────────
         self._tabs = QTabWidget()
+        self._tabs.setStyleSheet("""
+            QTabWidget::pane {
+                border: 1px solid #CCC;
+                top: -1px;
+                background: white;
+                border-radius: 4px;
+            }
+            QTabBar::tab {
+                background: #F0F0F0;
+                border: 1px solid #CCC;
+                padding: 10px 20px;
+                margin-right: 4px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                font-weight: bold;
+                color: #666;
+            }
+            QTabBar::tab:selected {
+                background: #1B3A5C;
+                color: white;
+                border-bottom-color: #1B3A5C;
+            }
+            QTabBar::tab:hover:!selected {
+                background: #E5E5E5;
+                color: #333;
+            }
+        """)
 
         # Bienes Muebles — todos los perfiles
         listado = BienListadoWidget(
@@ -186,9 +213,45 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self._tabs)
         self.setCentralWidget(central)
 
-        # ── Menú Herramientas ────────────────────────────────────────────
+        # ── Menú Herramientas (Diseño Premium) ───────────────────────────
         menu_bar = self.menuBar()
-        menu_herram = menu_bar.addMenu("Herramientas")
+        menu_bar.setStyleSheet("""
+            QMenuBar {
+                background-color: #F8F9FA;
+                border-bottom: 1px solid #DDD;
+                padding: 2px;
+                font-weight: 500;
+            }
+            QMenuBar::item {
+                background: transparent;
+                padding: 6px 12px;
+                border-radius: 4px;
+                color: #333;
+            }
+            QMenuBar::item:selected {
+                background: #E9ECEF;
+            }
+            QMenu {
+                background-color: white;
+                border: 1px solid #DDD;
+                padding: 5px;
+            }
+            QMenu::item {
+                padding: 6px 30px 6px 20px;
+                border-radius: 4px;
+                margin: 2px;
+            }
+            QMenu::item:selected {
+                background-color: #1B3A5C;
+                color: white;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #EEE;
+                margin: 4px 10px;
+            }
+        """)
+        menu_herram = menu_bar.addMenu("🔧 Herramientas")
 
         if session.tiene_permiso("backup.ejecutar"):
             act_backup = menu_herram.addAction("💾  Realizar Backup")
