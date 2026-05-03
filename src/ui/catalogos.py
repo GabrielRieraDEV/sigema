@@ -104,7 +104,11 @@ class DepartamentosTab(QWidget):
         self._tabla.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._tabla.setAlternatingRowColors(True)
         self._tabla.verticalHeader().setVisible(False)
-        self._tabla.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        header = self._tabla.horizontalHeader()
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Código
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)           # Nombre
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Subdpto. de
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)  # Estado
         self._tabla.setColumnHidden(0, True)
         self._tabla.doubleClicked.connect(self._editar)
         layout.addWidget(self._tabla)
@@ -133,7 +137,8 @@ class DepartamentosTab(QWidget):
                 if txt == "Inactivo":
                     item.setForeground(QColor("#888"))
                 self._tabla.setItem(row, col, item)
-        self._tabla.resizeColumnsToContents()
+        if self._tabla.rowCount() > 0:
+            self._tabla.selectRow(0)
 
     def _seleccionado(self) -> dict | None:
         fila = self._tabla.currentRow()
@@ -336,7 +341,10 @@ class CategoriasTab(QWidget):
         self._tabla.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._tabla.setAlternatingRowColors(True)
         self._tabla.verticalHeader().setVisible(False)
-        self._tabla.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header = self._tabla.horizontalHeader()
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)           # Nombre
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Descripción
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Estado
         self._tabla.setColumnHidden(0, True)
         self._tabla.doubleClicked.connect(self._editar)
         layout.addWidget(self._tabla)
@@ -362,7 +370,8 @@ class CategoriasTab(QWidget):
                 if txt == "Inactivo":
                     item.setForeground(QColor("#888"))
                 self._tabla.setItem(row, col, item)
-        self._tabla.resizeColumnsToContents()
+        if self._tabla.rowCount() > 0:
+            self._tabla.selectRow(0)
 
     def _seleccionada(self) -> dict | None:
         fila = self._tabla.currentRow()
@@ -530,7 +539,10 @@ class CuentasTab(QWidget):
         self._tabla.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._tabla.setAlternatingRowColors(True)
         self._tabla.verticalHeader().setVisible(False)
-        self._tabla.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header = self._tabla.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Código
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)           # Descripción
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Estado
         layout.addWidget(self._tabla)
 
     def cargar_datos(self) -> None:
@@ -554,7 +566,8 @@ class CuentasTab(QWidget):
                 if txt == "Inactivo":
                     item.setForeground(QColor("#888"))
                 self._tabla.setItem(row, col, item)
-        self._tabla.resizeColumnsToContents()
+        if self._tabla.rowCount() > 0:
+            self._tabla.selectRow(0)
 
     def _seleccionada(self) -> dict | None:
         fila = self._tabla.currentRow()

@@ -68,7 +68,12 @@ class UsuariosWidget(QWidget):
         self._tabla.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._tabla.setAlternatingRowColors(True)
         self._tabla.verticalHeader().setVisible(False)
-        self._tabla.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header = self._tabla.horizontalHeader()
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)        # Nombre completo
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Cargo
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Username
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)  # Perfil
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)  # Estado
         self._tabla.setColumnHidden(0, True)
         self._tabla.doubleClicked.connect(self._editar_usuario)
         layout.addWidget(self._tabla)
@@ -106,7 +111,8 @@ class UsuariosWidget(QWidget):
                 if texto == "Inactivo":
                     item.setForeground(QColor("#888"))
                 self._tabla.setItem(row, col, item)
-        self._tabla.resizeColumnsToContents()
+        if self._tabla.rowCount() > 0:
+            self._tabla.selectRow(0)
 
     def _usuario_seleccionado(self) -> dict | None:
         fila = self._tabla.currentRow()

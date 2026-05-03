@@ -119,18 +119,13 @@ class AuditoriaPanelWidget(QWidget):
         self._tabla.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._tabla.setAlternatingRowColors(True)
         self._tabla.verticalHeader().setVisible(False)
-        self._tabla.horizontalHeader().setSectionResizeMode(
-            1, QHeaderView.ResizeMode.ResizeToContents
-        )
-        self._tabla.horizontalHeader().setSectionResizeMode(
-            2, QHeaderView.ResizeMode.ResizeToContents
-        )
-        self._tabla.horizontalHeader().setSectionResizeMode(
-            3, QHeaderView.ResizeMode.ResizeToContents
-        )
-        self._tabla.horizontalHeader().setSectionResizeMode(
-            4, QHeaderView.ResizeMode.Stretch
-        )
+        header = self._tabla.horizontalHeader()
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Fecha/Hora
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Usuario
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Acción
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)           # Tabla
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)  # Registro ID
+        header.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)  # IP origen
         self._tabla.setColumnHidden(0, True)  # ID oculto
         layout.addWidget(self._tabla)
 
@@ -222,8 +217,6 @@ class AuditoriaPanelWidget(QWidget):
                 item = QTableWidgetItem(txt)
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 self._tabla.setItem(row, col, item)
-
-        self._tabla.resizeColumnsToContents()
 
     # ------------------------------------------------------------------
     # Exportar CSV (para contraloría interna)
