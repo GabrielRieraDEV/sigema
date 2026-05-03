@@ -35,6 +35,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.formulario_bm_service import FormularioBMService
+from src.core.auth import Session
 
 
 def _btn_style(color: str, hover: str) -> str:
@@ -86,6 +87,12 @@ class FormulariosBMWidget(QWidget):
         self._actualizar_historial()
         self._on_tipo_cambiado()
 
+        # Ocultar acciones de escritura si el perfil no puede generar
+        session = Session.get_instance()
+        if not session.tiene_permiso("formularios.generar"):
+            self._grp_generacion.setVisible(False)
+            self._btn_anular.setVisible(False)
+
     # ------------------------------------------------------------------
     # Construcción de la interfaz
     # ------------------------------------------------------------------
@@ -93,7 +100,8 @@ class FormulariosBMWidget(QWidget):
         layout = QVBoxLayout(self)
 
         # --- Sección de generación ---
-        layout.addWidget(self._crear_seccion_generacion())
+        self._grp_generacion = self._crear_seccion_generacion()
+        layout.addWidget(self._grp_generacion)
 
         # --- Tabla de historial ---
         grp_hist = QGroupBox("Historial de formularios emitidos")

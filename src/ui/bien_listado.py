@@ -27,6 +27,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.bien_service import BienService
+from src.core.auth import Session
 from src.ui.bien_estado import BienEstadoDialog
 from src.ui.bien_form import BienFormDialog
 
@@ -105,6 +106,14 @@ class BienListadoWidget(QWidget):
         # --- Barra de acciones ---
         layout.addLayout(self._crear_acciones())
 
+        # Ocultar acciones de escritura si el perfil es solo Consulta
+        session = Session.get_instance()
+        if not session.tiene_permiso("bienes.crear"):
+            self._btn_nuevo.setVisible(False)
+        if not session.tiene_permiso("bienes.editar_estado"):
+            self._btn_estado.setVisible(False)
+            self._btn_ver.setText("👁 Ver detalle")
+
     def _crear_filtros(self) -> QGroupBox:
         """Crea el grupo de filtros superiores."""
         grupo = QGroupBox("Filtros de búsqueda")
@@ -158,20 +167,20 @@ class BienListadoWidget(QWidget):
         """Crea la barra de botones de acción."""
         h_layout = QHBoxLayout()
 
-        btn_nuevo = QPushButton("➕ Nuevo")
-        btn_nuevo.setStyleSheet(_btn_style("#1B7F3A", "#238C47"))
-        btn_nuevo.clicked.connect(self._on_nuevo)
-        h_layout.addWidget(btn_nuevo)
+        self._btn_nuevo = QPushButton("➕ Nuevo")
+        self._btn_nuevo.setStyleSheet(_btn_style("#1B7F3A", "#238C47"))
+        self._btn_nuevo.clicked.connect(self._on_nuevo)
+        h_layout.addWidget(self._btn_nuevo)
 
-        btn_ver = QPushButton("👁 Ver / ✏ Editar")
-        btn_ver.setStyleSheet(_btn_style("#1B3A5C", "#245280"))
-        btn_ver.clicked.connect(self._on_ver_editar)
-        h_layout.addWidget(btn_ver)
+        self._btn_ver = QPushButton("👁 Ver / ✏ Editar")
+        self._btn_ver.setStyleSheet(_btn_style("#1B3A5C", "#245280"))
+        self._btn_ver.clicked.connect(self._on_ver_editar)
+        h_layout.addWidget(self._btn_ver)
 
-        btn_estado = QPushButton("⏸ Cambiar Estado")
-        btn_estado.setStyleSheet(_btn_style("#8B4513", "#A0522D"))
-        btn_estado.clicked.connect(self._on_cambiar_estado)
-        h_layout.addWidget(btn_estado)
+        self._btn_estado = QPushButton("⏸ Cambiar Estado")
+        self._btn_estado.setStyleSheet(_btn_style("#8B4513", "#A0522D"))
+        self._btn_estado.clicked.connect(self._on_cambiar_estado)
+        h_layout.addWidget(self._btn_estado)
 
         h_layout.addStretch()
 
