@@ -15,6 +15,14 @@ from PyQt6.QtWidgets import (
 from src.core.bien_service import BienService
 
 
+def _btn_style(color: str, hover: str) -> str:
+    return (
+        f"QPushButton {{ background:{color}; color:white; font-weight:bold;"
+        f" padding:5px 14px; border-radius:4px; }}"
+        f"QPushButton:hover {{ background:{hover}; }}"
+    )
+
+
 class BienEstadoDialog(QDialog):
     """Diálogo para cambiar el estado de un bien mueble.
 
@@ -93,11 +101,13 @@ class BienEstadoDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
-        btn_confirmar = QPushButton("Confirmar")
+        btn_confirmar = QPushButton("✔ Confirmar")
+        btn_confirmar.setStyleSheet(_btn_style("#1B7F3A", "#238C47"))
         btn_confirmar.clicked.connect(self._on_confirmar)
         btn_layout.addWidget(btn_confirmar)
 
-        btn_cancelar = QPushButton("Cancelar")
+        btn_cancelar = QPushButton("✖ Cancelar")
+        btn_cancelar.setStyleSheet(_btn_style("#CC0000", "#FF3333"))
         btn_cancelar.clicked.connect(self.reject)
         btn_layout.addWidget(btn_cancelar)
 

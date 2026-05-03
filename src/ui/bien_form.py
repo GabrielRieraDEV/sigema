@@ -15,6 +15,13 @@ from PyQt6.QtWidgets import (
 )
 from src.core.bien_service import BienService
 
+def _btn_style(color: str, hover: str) -> str:
+    return (
+        f"QPushButton {{ background:{color}; color:white; font-weight:bold;"
+        f" padding:5px 14px; border-radius:4px; }}"
+        f"QPushButton:hover {{ background:{hover}; }}"
+    )
+
 class BienFormDialog(QDialog):
     _MONEDAS = ["Bolívares", "Dólares"]
     _TIPOS = ["", "Administrativo", "Ejecutivo", "Operativo", "Técnico"]
@@ -159,10 +166,12 @@ class BienFormDialog(QDialog):
         bl = QHBoxLayout()
         bl.addStretch()
         if self._modo == "nuevo":
-            btn_g = QPushButton("Guardar")
+            btn_g = QPushButton("💾 Guardar")
+            btn_g.setStyleSheet(_btn_style("#1B7F3A", "#238C47"))
             btn_g.clicked.connect(self._on_guardar)
             bl.addWidget(btn_g)
-        btn_c = QPushButton("Cerrar" if self._modo == "ver" else "Cancelar")
+        btn_c = QPushButton("✖ Cerrar" if self._modo == "ver" else "✖ Cancelar")
+        btn_c.setStyleSheet(_btn_style("#CC0000", "#FF3333"))
         btn_c.clicked.connect(self.reject)
         bl.addWidget(btn_c)
         main_layout.addLayout(bl)

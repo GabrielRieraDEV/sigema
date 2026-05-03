@@ -1,102 +1,368 @@
 """
 main.py — Punto de entrada de SIGEMA.
 
-Inicializa la aplicación PyQt6, la conexión a BD, los repositorios,
-los servicios de negocio y la ventana principal con pestañas para
-el módulo de Bienes Muebles y el módulo de Formularios BM.
+Flujo de arranque:
+  1. Verificar config.ini → si no existe, mostrar SetupInicialDialog.
+  2. Inicializar DBConnection.
+  3. Mostrar LoginDialog.
+  4. Abrir MainWindow con las pestañas según el perfil del usuario.
+
+MainWindow incluye:
+  - Control de inactividad por QTimer (NF-05, 30 min).
+  - Menú Herramientas → Realizar Backup, Cerrar Sesión.
+  - Status bar con usuario y perfil activos.
+  - Pestañas de Usuarios, Catálogos y Auditoría solo para Administrador.
 """
+
+from __future__ import annotations
+
+import os
 import sys
-from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout, QLabel
+from pathlib import Path
+
+from PyQt6.QtCore import QEvent, Qt, QTimer
 from PyQt6.QtGui import QIcon, QPixmap
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QApplication,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QTabWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QWidget,
+)
+
+from src.core.auth import Session
+from src.core.backup import ejecutar_backup
 from src.db.connection import DBConnection
 from src.db.bien_repository import BienRepository
 from src.db.movimiento_repository import MovimientoRepository
 from src.db.formulario_bm_repository import FormularioBMRepository
+from src.db.usuario_repository import UsuarioRepository
+from src.db.catalogo_repository import CatalogoRepository
+from src.db.auditoria_repository import AuditoriaRepository
 from src.core.bien_service import BienService
 from src.core.formulario_bm_service import FormularioBMService
 from src.ui.bien_listado import BienListadoWidget
 from src.ui.formularios_bm import FormulariosBMWidget
+from src.ui.usuarios import UsuariosWidget
+from src.ui.catalogos import CatalogosWidget
+from src.ui.auditoria_panel import AuditoriaPanelWidget
+
+# Intervalo del timer de inactividad (ms). Comprueba cada 60 seg.
+_TIMER_INTERVAL_MS = 60_000
 
 
-# ID del usuario autenticado (temporal — se reemplazará con módulo de login)
-_USUARIO_ID_TEMPORAL = 1
+def _config_existe() -> bool:
+    """Retorna True si config.ini existe y tiene la sección [database]."""
+    import configparser
+    current = Path(__file__).resolve().parent
+    for _ in range(6):
+        candidate = current / "config.ini"
+        if candidate.is_file():
+            cfg = configparser.ConfigParser()
+            cfg.read(str(candidate), encoding="utf-8")
+            return "database" in cfg
+        current = current.parent
+    return False
 
 
-def main() -> None:
-    app = QApplication(sys.argv)
-    app.setApplicationName("SIGEMA")
-    app.setApplicationDisplayName(
-        "SIGEMA — Sistema de Gestión de Bienes Muebles")
+# ===========================================================================
+# Ventana principal
+# ===========================================================================
+class MainWindow(QMainWindow):
+    """Ventana principal de SIGEMA con control de inactividad."""
 
-    # --- Conexión a BD ---
+    def __init__(
+        self,
+        db: DBConnection,
+        bien_service: BienService,
+        formulario_service: FormularioBMService,
+        usuario_repo: UsuarioRepository,
+        catalogo_repo: CatalogoRepository,
+        auditoria_repo: AuditoriaRepository,
+    ):
+        super().__init__()
+        self._db = db
+        self._bien_service = bien_service
+        self._formulario_service = formulario_service
+        self._usuario_repo = usuario_repo
+        self._catalogo_repo = catalogo_repo
+        self._auditoria_repo = auditoria_repo
+
+        session = Session.get_instance()
+        self._perfil = session.perfil or ""
+        self._usuario_id = session.usuario_id
+
+        self._setup_ui()
+        self._setup_inactividad_timer()
+
+        # Interceptar eventos de la ventana para refrescar actividad
+        self.installEventFilter(self)
+
+    # ------------------------------------------------------------------
+    # UI
+    # ------------------------------------------------------------------
+    def _setup_ui(self) -> None:
+        session = Session.get_instance()
+        usuario = session.usuario_actual or {}
+        nombre_completo = f"{usuario.get('nombre', '')} {usuario.get('apellido', '')}".strip()
+
+        self.setWindowTitle("SIGEMA — Sistema de Gestión de Bienes Muebles")
+        self.setWindowIcon(QIcon("assets/icono .png"))
+        self.resize(1100, 680)
+
+        # ── Widget central ───────────────────────────────────────────────
+        central = QWidget()
+        main_layout = QVBoxLayout(central)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(6)
+
+        # ── Header ───────────────────────────────────────────────────────
+        header_layout = QHBoxLayout()
+        logo_lbl = QLabel()
+        pixmap = QPixmap("assets/logo.png")
+        if not pixmap.isNull():
+            logo_lbl.setPixmap(
+                pixmap.scaledToHeight(70, Qt.TransformationMode.SmoothTransformation)
+            )
+        header_layout.addWidget(logo_lbl)
+
+        title_lbl = QLabel(
+            "<b>SIGEMA</b><br>Sistema de Gestión de Bienes Muebles"
+        )
+        title_lbl.setStyleSheet("font-size:17px; color:#1B3A5C;")
+        header_layout.addWidget(title_lbl)
+        header_layout.addStretch()
+
+        user_lbl = QLabel(
+            f"<span style='color:#555; font-size:11px;'>"
+            f"👤 <b>{nombre_completo}</b> — {self._perfil}</span>"
+        )
+        user_lbl.setTextFormat(Qt.TextFormat.RichText)
+        header_layout.addWidget(user_lbl)
+        main_layout.addLayout(header_layout)
+
+        # ── Pestañas ────────────────────────────────────────────────────
+        self._tabs = QTabWidget()
+
+        # Bienes Muebles — todos los perfiles
+        listado = BienListadoWidget(
+            bien_service=self._bien_service,
+            usuario_id=self._usuario_id,
+        )
+        self._tabs.addTab(listado, "Bienes Muebles")
+
+        # Formularios BM — Almacenista y Administrador
+        if session.tiene_permiso("formularios.generar") or session.tiene_permiso("formularios.ver"):
+            formularios = FormulariosBMWidget(
+                bm_service=self._formulario_service,
+                usuario_id=self._usuario_id,
+            )
+            self._tabs.addTab(formularios, "Formularios BM")
+
+        # Usuarios — solo Administrador
+        if session.tiene_permiso("usuarios.gestionar"):
+            self._tabs.addTab(
+                UsuariosWidget(self._usuario_repo),
+                "Usuarios"
+            )
+
+        # Catálogos — solo Administrador
+        if session.tiene_permiso("catalogos.gestionar"):
+            self._tabs.addTab(
+                CatalogosWidget(self._catalogo_repo),
+                "Catálogos"
+            )
+
+        # Auditoría — solo Administrador
+        if session.tiene_permiso("auditoria.ver"):
+            self._tabs.addTab(
+                AuditoriaPanelWidget(self._auditoria_repo),
+                "Auditoría"
+            )
+
+        main_layout.addWidget(self._tabs)
+        self.setCentralWidget(central)
+
+        # ── Menú Herramientas ────────────────────────────────────────────
+        menu_bar = self.menuBar()
+        menu_herram = menu_bar.addMenu("Herramientas")
+
+        if session.tiene_permiso("backup.ejecutar"):
+            act_backup = menu_herram.addAction("💾  Realizar Backup")
+            act_backup.triggered.connect(self._realizar_backup)
+            menu_herram.addSeparator()
+
+        act_logout = menu_herram.addAction("🔒  Cerrar sesión")
+        act_logout.triggered.connect(self._cerrar_sesion)
+
+        # ── Status bar ───────────────────────────────────────────────────
+        self.statusBar().showMessage(
+            f"Usuario: {nombre_completo} | Perfil: {self._perfil}"
+        )
+
+    # ------------------------------------------------------------------
+    # Inactividad (NF-05)
+    # ------------------------------------------------------------------
+    def _setup_inactividad_timer(self) -> None:
+        self._timer_inactividad = QTimer(self)
+        self._timer_inactividad.setInterval(_TIMER_INTERVAL_MS)
+        self._timer_inactividad.timeout.connect(self._verificar_inactividad)
+        self._timer_inactividad.start()
+
+    def _verificar_inactividad(self) -> None:
+        session = Session.get_instance()
+        if session.verificar_inactividad():
+            self._timer_inactividad.stop()
+            QMessageBox.warning(
+                self,
+                "Sesión expirada",
+                "Su sesión expiró por inactividad (30 minutos).\n"
+                "Será redirigido al inicio de sesión.",
+            )
+            self._cerrar_sesion()
+
+    def eventFilter(self, obj, event) -> bool:  # type: ignore[override]
+        """Refresca la actividad en cualquier interacción del usuario."""
+        if event.type() in (
+            QEvent.Type.MouseButtonPress,
+            QEvent.Type.KeyPress,
+            QEvent.Type.Wheel,
+        ):
+            Session.get_instance().refrescar_actividad()
+        return super().eventFilter(obj, event)
+
+    # ------------------------------------------------------------------
+    # Acciones de menú
+    # ------------------------------------------------------------------
+    def _realizar_backup(self) -> None:
+        Session.get_instance().refrescar_actividad()
+        resp = QMessageBox.question(
+            self,
+            "Realizar Backup",
+            "¿Desea generar un respaldo de la base de datos ahora?",
+        )
+        if resp != QMessageBox.StandardButton.Yes:
+            return
+
+        self.statusBar().showMessage("Generando backup…")
+        ok, resultado = ejecutar_backup()
+        self.statusBar().showMessage(
+            f"Usuario: {Session.get_instance().usuario_actual.get('username', '')} "
+            f"| Perfil: {self._perfil}"
+        )
+
+        if ok:
+            QMessageBox.information(
+                self,
+                "Backup exitoso",
+                f"Respaldo generado correctamente:\n\n{resultado}",
+            )
+        else:
+            QMessageBox.critical(
+                self,
+                "Error en Backup",
+                f"No se pudo generar el respaldo:\n\n{resultado}",
+            )
+
+    def _cerrar_sesion(self) -> None:
+        """Cierra la sesión y relanza el flujo de login."""
+        self._timer_inactividad.stop()
+        Session.logout()
+        DBConnection.reset_instance()
+        self.close()
+        # Relanzar el flujo de autenticación
+        _arrancar_flujo_login()
+
+    def closeEvent(self, event) -> None:  # type: ignore[override]
+        self._timer_inactividad.stop()
+        self._db.close_pool()
+        super().closeEvent(event)
+
+
+# ===========================================================================
+# Flujo de arranque
+# ===========================================================================
+def _arrancar_flujo_login() -> None:
+    """Muestra LoginDialog y si OK abre MainWindow."""
+    from src.ui.login import LoginDialog
+
+    # Reinicializar DBConnection tras logout
     try:
         db = DBConnection()
     except (FileNotFoundError, ValueError, ConnectionError) as exc:
         QMessageBox.critical(None, "Error de conexión", str(exc))
         sys.exit(1)
 
-    # --- Capas de la aplicación ---
+    login_dlg = LoginDialog()
+    if login_dlg.exec() != login_dlg.DialogCode.Accepted:
+        db.close_pool()
+        QApplication.instance().quit()
+        return
+
+    _abrir_ventana_principal(db)
+
+
+def _abrir_ventana_principal(db: DBConnection) -> None:
+    """Construye e instancia MainWindow con todas sus dependencias."""
+    # Repositorios
     bien_repo = BienRepository(db)
     mov_repo = MovimientoRepository(db)
-    bien_service = BienService(bien_repo, mov_repo)
-
     formulario_repo = FormularioBMRepository(db)
+    usuario_repo = UsuarioRepository(db)
+    catalogo_repo = CatalogoRepository(db)
+    auditoria_repo = AuditoriaRepository(db)
+
+    # Servicios
+    bien_service = BienService(bien_repo, mov_repo)
     formulario_service = FormularioBMService(formulario_repo)
 
-    # --- Ventana principal ---
-    window = QMainWindow()
-    window.setWindowTitle(
-        "SIGEMA — Sistema de Gestión de Bienes Muebles")
-    window.setWindowIcon(QIcon("assets/icono .png"))
-    window.resize(1024, 640)
-
-    # --- Layout Principal y Header ---
-    main_widget = QWidget()
-    main_layout = QVBoxLayout(main_widget)
-    main_layout.setContentsMargins(10, 10, 10, 10)
-
-    header_layout = QHBoxLayout()
-    logo_label = QLabel()
-    pixmap = QPixmap("assets/logo.png")
-    if not pixmap.isNull():
-        # Escalar manteniendo la proporción (altura de 80px para que no quite mucho espacio vertical)
-        logo_label.setPixmap(pixmap.scaledToHeight(80, Qt.TransformationMode.SmoothTransformation))
-    header_layout.addWidget(logo_label)
-
-    title_label = QLabel("<b>SIGEMA</b><br>Sistema de Gestión de Bienes Muebles")
-    title_label.setStyleSheet("font-size: 18px; color: #1B3A5C;")
-    header_layout.addWidget(title_label)
-    header_layout.addStretch()
-
-    main_layout.addLayout(header_layout)
-
-    # --- Pestañas ---
-    tabs = QTabWidget()
-
-    # Tab 1: Bienes Muebles (Módulo A)
-    listado = BienListadoWidget(
+    window = MainWindow(
+        db=db,
         bien_service=bien_service,
-        usuario_id=_USUARIO_ID_TEMPORAL,
+        formulario_service=formulario_service,
+        usuario_repo=usuario_repo,
+        catalogo_repo=catalogo_repo,
+        auditoria_repo=auditoria_repo,
     )
-    tabs.addTab(listado, "Bienes Muebles")
-
-    # Tab 2: Formularios BM (Módulo B)
-    formularios = FormulariosBMWidget(
-        bm_service=formulario_service,
-        usuario_id=_USUARIO_ID_TEMPORAL,
-    )
-    tabs.addTab(formularios, "Formularios BM")
-
-    main_layout.addWidget(tabs)
-    window.setCentralWidget(main_widget)
     window.show()
 
-    # --- Ejecución ---
-    exit_code = app.exec()
+    # Mantener referencia para evitar garbage collection
+    QApplication.instance()._main_window = window  # type: ignore[attr-defined]
 
-    # --- Limpieza ---
-    db.close_pool()
+
+def main() -> None:
+    app = QApplication(sys.argv)
+    app.setApplicationName("SIGEMA")
+    app.setApplicationDisplayName("SIGEMA — Sistema de Gestión de Bienes Muebles")
+
+    # ── 1. Configuración inicial (primer arranque) ───────────────────────
+    if not _config_existe():
+        from src.ui.setup_inicial import SetupInicialDialog
+        setup_dlg = SetupInicialDialog()
+        if setup_dlg.exec() != setup_dlg.DialogCode.Accepted:
+            sys.exit(0)
+
+    # ── 2. Conexión a BD ─────────────────────────────────────────────────
+    try:
+        db = DBConnection()
+    except (FileNotFoundError, ValueError, ConnectionError) as exc:
+        QMessageBox.critical(None, "Error de conexión", str(exc))
+        sys.exit(1)
+
+    # ── 3. Login ─────────────────────────────────────────────────────────
+    from src.ui.login import LoginDialog
+    login_dlg = LoginDialog()
+    if login_dlg.exec() != login_dlg.DialogCode.Accepted:
+        db.close_pool()
+        sys.exit(0)
+
+    # ── 4. Ventana principal ─────────────────────────────────────────────
+    _abrir_ventana_principal(db)
+
+    exit_code = app.exec()
     sys.exit(exit_code)
 
 

@@ -31,6 +31,14 @@ from src.ui.bien_estado import BienEstadoDialog
 from src.ui.bien_form import BienFormDialog
 
 
+def _btn_style(color: str, hover: str) -> str:
+    return (
+        f"QPushButton {{ background:{color}; color:white; font-weight:bold;"
+        f" padding:5px 14px; border-radius:4px; }}"
+        f"QPushButton:hover {{ background:{hover}; }}"
+    )
+
+
 class BienListadoWidget(QWidget):
     """Widget principal del módulo Bienes Muebles.
 
@@ -139,7 +147,8 @@ class BienListadoWidget(QWidget):
         h_layout.addWidget(self._filtro_estado)
 
         # Botón buscar
-        btn_buscar = QPushButton("Buscar")
+        btn_buscar = QPushButton("🔍 Buscar")
+        btn_buscar.setStyleSheet(_btn_style("#1B3A5C", "#245280"))
         btn_buscar.clicked.connect(self._on_buscar)
         h_layout.addWidget(btn_buscar)
 
@@ -149,21 +158,25 @@ class BienListadoWidget(QWidget):
         """Crea la barra de botones de acción."""
         h_layout = QHBoxLayout()
 
-        btn_nuevo = QPushButton("Nuevo")
+        btn_nuevo = QPushButton("➕ Nuevo")
+        btn_nuevo.setStyleSheet(_btn_style("#1B7F3A", "#238C47"))
         btn_nuevo.clicked.connect(self._on_nuevo)
         h_layout.addWidget(btn_nuevo)
 
-        btn_ver = QPushButton("Ver / Editar")
+        btn_ver = QPushButton("👁 Ver / ✏ Editar")
+        btn_ver.setStyleSheet(_btn_style("#1B3A5C", "#245280"))
         btn_ver.clicked.connect(self._on_ver_editar)
         h_layout.addWidget(btn_ver)
 
-        btn_estado = QPushButton("Cambiar Estado")
+        btn_estado = QPushButton("⏸ Cambiar Estado")
+        btn_estado.setStyleSheet(_btn_style("#8B4513", "#A0522D"))
         btn_estado.clicked.connect(self._on_cambiar_estado)
         h_layout.addWidget(btn_estado)
 
         h_layout.addStretch()
 
-        btn_actualizar = QPushButton("Actualizar")
+        btn_actualizar = QPushButton("↺ Actualizar")
+        btn_actualizar.setStyleSheet(_btn_style("#5C6B73", "#6D7F88"))
         btn_actualizar.clicked.connect(self._actualizar_tabla)
         h_layout.addWidget(btn_actualizar)
 

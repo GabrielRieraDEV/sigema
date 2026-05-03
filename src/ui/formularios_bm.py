@@ -37,6 +37,14 @@ from PyQt6.QtWidgets import (
 from src.core.formulario_bm_service import FormularioBMService
 
 
+def _btn_style(color: str, hover: str) -> str:
+    return (
+        f"QPushButton {{ background:{color}; color:white; font-weight:bold;"
+        f" padding:5px 14px; border-radius:4px; }}"
+        f"QPushButton:hover {{ background:{hover}; }}"
+    )
+
+
 class FormulariosBMWidget(QWidget):
     """Widget principal del módulo Formularios BM.
 
@@ -119,15 +127,18 @@ class FormulariosBMWidget(QWidget):
         btn_hist_layout = QHBoxLayout()
         btn_hist_layout.addStretch()
 
-        self._btn_anular = QPushButton("Anular Formulario")
+        self._btn_anular = QPushButton("🚫 Anular Formulario")
+        self._btn_anular.setStyleSheet(_btn_style("#CC0000", "#FF3333"))
         self._btn_anular.clicked.connect(self._on_anular)
         btn_hist_layout.addWidget(self._btn_anular)
 
-        btn_descargar = QPushButton("Ver / Descargar PDF")
+        btn_descargar = QPushButton("📄 Ver / Descargar PDF")
+        btn_descargar.setStyleSheet(_btn_style("#1B3A5C", "#245280"))
         btn_descargar.clicked.connect(self._on_descargar_pdf)
         btn_hist_layout.addWidget(btn_descargar)
 
-        btn_actualizar = QPushButton("Actualizar")
+        btn_actualizar = QPushButton("↺ Actualizar")
+        btn_actualizar.setStyleSheet(_btn_style("#5C6B73", "#6D7F88"))
         btn_actualizar.clicked.connect(self._actualizar_historial)
         btn_hist_layout.addWidget(btn_actualizar)
 
@@ -190,11 +201,13 @@ class FormulariosBMWidget(QWidget):
         fila3 = QHBoxLayout()
         fila3.addStretch()
 
-        btn_generar = QPushButton("Generar PDF")
+        btn_generar = QPushButton("📑 Generar PDF")
+        btn_generar.setStyleSheet(_btn_style("#1B7F3A", "#238C47"))
         btn_generar.clicked.connect(self._on_generar_pdf)
         fila3.addWidget(btn_generar)
 
-        btn_imprimir = QPushButton("Imprimir")
+        btn_imprimir = QPushButton("🖨 Imprimir")
+        btn_imprimir.setStyleSheet(_btn_style("#8B4513", "#A0522D"))
         btn_imprimir.clicked.connect(self._on_imprimir)
         fila3.addWidget(btn_imprimir)
 

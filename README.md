@@ -257,7 +257,7 @@ La carpeta `docs/` contiene la documentación completa del proyecto:
 | 2 | Diseño de base de datos y ERD | ✅ Completada |
 | 3 | Desarrollo Módulo A — Bienes Muebles | ✅ Completada |
 | 4 | Desarrollo formularios BM-1 al BM-4 | ✅ Completada |
-| 5 | Desarrollo Módulo C — Administración | 🔄 En progreso |
+| 5 | Desarrollo Módulo C — Administración | ✅ Completada |
 | 6 | Migración de datos históricos | ⏳ Pendiente |
 | 7 | Pruebas y empaquetado | ⏳ Pendiente |
 
