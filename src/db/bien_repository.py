@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.db.connection import DBConnection
+from src.core.auditoria import auditar
 
 
 class BienRepository:
@@ -38,6 +39,7 @@ class BienRepository:
     # ------------------------------------------------------------------
     # CRUD — Bienes
     # ------------------------------------------------------------------
+    @auditar("CREAR", "bien")
     def crear(self, bien: dict[str, Any]) -> int:
         """Inserta un nuevo bien y retorna su id.
 
@@ -164,6 +166,7 @@ class BienRepository:
             cur.execute(sql, params)
             return self._rows_to_list(cur, cur.fetchall())
 
+    @auditar("ACTUALIZAR_ESTADO", "bien")
     def actualizar_estado(
         self,
         bien_id: int,

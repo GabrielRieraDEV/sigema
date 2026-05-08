@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.db.connection import DBConnection
+from src.core.auditoria import auditar
 
 
 class UsuarioRepository:
@@ -99,6 +100,7 @@ class UsuarioRepository:
     # ------------------------------------------------------------------
     # INSERT
     # ------------------------------------------------------------------
+    @auditar("CREAR", "usuario")
     def crear(self, datos: dict[str, Any]) -> int:
         """Inserta un nuevo usuario y retorna su id.
 
@@ -125,6 +127,7 @@ class UsuarioRepository:
     # ------------------------------------------------------------------
     # UPDATE
     # ------------------------------------------------------------------
+    @auditar("ACTUALIZAR", "usuario")
     def actualizar(self, usuario_id: int, datos: dict[str, Any]) -> bool:
         """Actualiza datos de un usuario existente.
 
@@ -149,6 +152,7 @@ class UsuarioRepository:
             cur.execute(sql, datos)
             return cur.rowcount == 1
 
+    @auditar("CAMBIAR_ESTADO", "usuario")
     def cambiar_estado(self, usuario_id: int, activo: bool) -> bool:
         """Activa o desactiva un usuario (RN-02 aplicado a usuarios).
 
