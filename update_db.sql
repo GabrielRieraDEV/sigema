@@ -26,6 +26,9 @@ SELECT setval('departamento_id_seq', (SELECT MAX(id) FROM departamento));
 
 ALTER TABLE formulario_bm ADD COLUMN IF NOT EXISTS archivo_pdf BYTEA;
 
+-- Asegurar que password_hash soporte bcrypt (60 caracteres)
+ALTER TABLE usuario ALTER COLUMN password_hash TYPE VARCHAR(255);
+
 -- Insertar usuario admin por defecto si no existe
 INSERT INTO usuario (nombre, apellido, cargo, username, password_hash, perfil, activo) 
 VALUES (
