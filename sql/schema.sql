@@ -169,9 +169,9 @@ INSERT INTO cuenta_contable (codigo, descripcion) VALUES
 ('2-1-214-13', 'Equipos de procesamiento de datos');
 
 -- 5.2 Usuario Administrador Inicial
--- Contraseña (admin123) en hash bcrypt
+-- Contraseña (admin) en hash bcrypt
 INSERT INTO usuario (nombre, apellido, cargo, username, password_hash, perfil, activo) VALUES
-('Administrador', 'Sistema', 'Jefe División Control de Bienes', 'admin', '$2b$12$ME.2arU3sPsdT7O/qW4I..9s44EtQEZmmUsITrgfJscxS7NismLEK', 'Administrador', TRUE);
+('Administrador', 'Sistema', 'Jefe División Control de Bienes', 'admin', '$2b$12$CZoTqToi1kNhh8Ob.qkEX.uguuuKxUoNk2waPKXlbnYfN2HCKHxmC', 'Administrador', TRUE);
 
 -- 5.3 Categorías básicas
 INSERT INTO categoria (nombre, descripcion) VALUES
