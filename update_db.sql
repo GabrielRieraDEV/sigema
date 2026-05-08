@@ -25,3 +25,16 @@ ON CONFLICT (id) DO NOTHING;
 SELECT setval('departamento_id_seq', (SELECT MAX(id) FROM departamento));
 
 ALTER TABLE formulario_bm ADD COLUMN IF NOT EXISTS archivo_pdf BYTEA;
+
+-- Insertar usuario admin por defecto si no existe
+INSERT INTO usuario (nombre, apellido, cargo, username, password_hash, perfil, activo) 
+VALUES (
+    'Administrador', 
+    'Sistema', 
+    'Admin', 
+    'admin', 
+    '$2b$12$CZoTqToi1kNhh8Ob.qkEX.uguuuKxUoNk2waPKXlbnYfN2HCKHxmC', 
+    'Administrador', 
+    true
+)
+ON CONFLICT (username) DO NOTHING;
