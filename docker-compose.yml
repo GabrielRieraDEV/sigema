@@ -8,6 +8,7 @@ services:
       POSTGRES_USER: sigema_user
       POSTGRES_PASSWORD: sigema_pass
       POSTGRES_DB: sigema
+      TZ: America/Caracas
     ports:
       - "5432:5432"
     volumes:
