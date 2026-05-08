@@ -99,44 +99,71 @@ def ejecutar_backup() -> tuple[bool, str]:
         "-U", params["user"],
         "-d", params["dbname"],
         "--no-password",
-        "-f", ruta_archivo,
         "--encoding=UTF8",
         "--verbose",
     ]
 
-    # Pasar contraseña via variable de entorno (seguro, no aparece en ps/tasklist)
+    # Pasar contraseña via variable de entorno
     env = os.environ.copy()
     env["PGPASSWORD"] = params["password"]
 
     try:
-        resultado = subprocess.run(
-            cmd,
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=300,  # 5 minutos máximo
-        )
+        with open(ruta_archivo, "wb") as f_out:
+            resultado = subprocess.run(
+                cmd,
+                env=env,
+                stdout=f_out,
+                stderr=subprocess.PIPE,
+                timeout=300,
+            )
+            
+        if resultado.returncode != 0:
+            error_msg = resultado.stderr.decode("utf-8", errors="replace").strip()
+            return False, f"pg_dump terminó con error (código {resultado.returncode}):\n{error_msg}"
+            
     except FileNotFoundError:
-        return (
-            False,
-            "No se encontró el ejecutable 'pg_dump'.\n"
-            "Asegúrese de que PostgreSQL está instalado y que 'pg_dump' "
-            "está en el PATH del sistema.",
-        )
+        # Fallback: Intentar con Docker
+        cmd_docker = [
+            "docker", "exec", "-i",
+            "-e", f"PGPASSWORD={params['password']}",
+            "sigema_db",
+            "pg_dump",
+            "-U", params["user"],
+            "-d", params["dbname"],
+            "--no-password",
+            "--encoding=UTF8",
+            "--verbose",
+        ]
+        try:
+            with open(ruta_archivo, "wb") as f_out:
+                resultado = subprocess.run(
+                    cmd_docker,
+                    stdout=f_out,
+                    stderr=subprocess.PIPE,
+                    timeout=300,
+                )
+            if resultado.returncode != 0:
+                error_msg = resultado.stderr.decode("utf-8", errors="replace").strip()
+                return False, f"pg_dump (Docker) terminó con error:\n{error_msg}"
+        except FileNotFoundError:
+            return (
+                False,
+                "No se encontró 'pg_dump' ni 'docker'.\n"
+                "Para hacer respaldos necesita PostgreSQL instalado localmente o Docker ejecutándose."
+            )
+        except subprocess.TimeoutExpired:
+            return False, "El backup en Docker excedió el tiempo límite."
+        except Exception as exc:
+            return False, f"Error al ejecutar docker pg_dump: {exc}"
+
     except subprocess.TimeoutExpired:
         return False, "El backup excedió el tiempo límite de 5 minutos."
     except Exception as exc:
         return False, f"Error al ejecutar pg_dump: {exc}"
 
-    if resultado.returncode != 0:
-        error_msg = resultado.stderr.strip() or "Error desconocido en pg_dump."
-        return False, f"pg_dump terminó con error (código {resultado.returncode}):\n{error_msg}"
-
     # Verificar que el archivo fue creado y no está vacío
-    if not os.path.isfile(ruta_archivo):
-        return False, "pg_dump ejecutó pero el archivo no fue creado."
-
-    tamaño_kb = os.path.getsize(ruta_archivo) // 1024
+    if not os.path.isfile(ruta_archivo) or os.path.getsize(ruta_archivo) == 0:
+        return False, "El comando se ejecutó pero el archivo de backup está vacío o no se creó."
 
     return True, ruta_archivo
 
