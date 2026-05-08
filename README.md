@@ -225,9 +225,12 @@ cp config.example.ini config.ini
 # Editar config.ini (la configuración por defecto ya sirve para Docker)
 
 # 6. Opcional: Insertar datos de prueba
-# En Windows (PowerShell):
-Get-Content sql\schema.sql | docker exec -i sigema_db psql -U sigema_user -d sigema
-Get-Content dummy_data.sql | docker exec -i sigema_db psql -U sigema_user -d sigema
+# En Windows (PowerShell) / Linux / Mac:
+docker cp sql/schema.sql sigema_db:/schema.sql
+docker exec sigema_db psql -U sigema_user -d sigema -f /schema.sql
+
+docker cp dummy_data.sql sigema_db:/dummy_data.sql
+docker exec sigema_db psql -U sigema_user -d sigema -f /dummy_data.sql
 
 # En Linux/Mac o CMD:
 # docker exec -i sigema_db psql -U sigema_user -d sigema < sql/schema.sql

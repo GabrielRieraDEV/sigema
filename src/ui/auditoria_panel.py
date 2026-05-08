@@ -95,6 +95,15 @@ class AuditoriaPanelWidget(QWidget):
         btn_buscar.clicked.connect(self.buscar)
         filtros_layout.addWidget(btn_buscar)
 
+        btn_actualizar = QPushButton("🔄 Actualizar")
+        btn_actualizar.setStyleSheet(
+            "QPushButton { background:#6c757d; color:white; font-weight:bold;"
+            " padding:5px 14px; border-radius:4px; }"
+            "QPushButton:hover { background:#5a6268; }"
+        )
+        btn_actualizar.clicked.connect(self.buscar)
+        filtros_layout.addWidget(btn_actualizar)
+
         btn_csv = QPushButton("📄 Exportar CSV")
         btn_csv.setStyleSheet(
             "QPushButton { background:#1B7F3A; color:white; font-weight:bold;"
