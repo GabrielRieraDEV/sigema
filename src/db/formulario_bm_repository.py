@@ -157,10 +157,13 @@ class FormularioBMRepository:
                 b.num_piezas            AS cantidad,
                 b.descripcion           AS nombre_descripcion,
                 b.precio_sin_iva        AS valor_unitario,
-                (b.precio_sin_iva * b.num_piezas) AS valor_total
+                (b.precio_sin_iva * b.num_piezas) AS valor_total,
+                b.estado                AS estado,
+                ce.descripcion          AS estado_descripcion
             FROM bien b
+            LEFT JOIN catalogo_estado ce ON b.estado = ce.codigo
             WHERE b.departamento_id = %s
-              AND b.estado = 'Activo'
+              AND b.estado NOT IN ('06', '07')
             ORDER BY b.cuenta_contable, b.codigo_activo
         """
         with self._db.get_cursor() as cur:
@@ -208,10 +211,14 @@ class FormularioBMRepository:
                 b.precio_sin_iva        AS precio_unitario,
                 (b.precio_sin_iva * b.num_piezas) AS valor_total,
                 m.tipo_movimiento       AS concepto,
+                m.motivo                AS motivo,
+                b.estado                AS estado,
+                ce.descripcion          AS estado_descripcion,
                 d_orig.nombre               AS origen_nombre,
                 d_dest.nombre               AS destino_nombre
             FROM movimiento m
             JOIN bien b         ON m.bien_id            = b.id
+            LEFT JOIN catalogo_estado ce ON b.estado = ce.codigo
             LEFT JOIN departamento d_orig ON m.departamento_origen  = d_orig.id
             LEFT JOIN departamento d_dest ON m.departamento_destino = d_dest.id
             WHERE {where}
@@ -224,10 +231,12 @@ class FormularioBMRepository:
     def obtener_faltantes(
         self, departamento_id: int
     ) -> list[dict[str, Any]]:
-        """Datos para BM-3: bienes faltantes (Concepto 60) de un depto.
+        """Datos para BM-3: bienes inoperativos irrecuperables (estado 06,
+        Concepto 60) de un departamento.
 
         Incluye el último movimiento de tipo 'Marcado como faltante'
-        para obtener el responsable.
+        (registrado al pasar a estado 06) para obtener la descripción
+        del daño y, si lo hubiera, el responsable.
         """
         sql = """
             SELECT
@@ -240,9 +249,12 @@ class FormularioBMRepository:
                 b.precio_sin_iva        AS valor_unitario,
                 b.num_piezas            AS cantidad_faltante,
                 (b.precio_sin_iva * b.num_piezas) AS valor_total,
+                b.estado                AS estado,
+                ce.descripcion          AS estado_descripcion,
                 m.responsable_faltante  AS responsable,
                 m.motivo                AS observaciones_faltante
             FROM bien b
+            LEFT JOIN catalogo_estado ce ON b.estado = ce.codigo
             LEFT JOIN LATERAL (
                 SELECT mov.responsable_faltante, mov.motivo
                   FROM movimiento mov
@@ -252,7 +264,7 @@ class FormularioBMRepository:
                  LIMIT 1
             ) m ON TRUE
             WHERE b.departamento_id = %s
-              AND b.estado = 'Faltante'
+              AND b.estado = '06'
             ORDER BY b.cuenta_contable, b.codigo_activo
         """
         with self._db.get_cursor() as cur:
@@ -287,7 +299,7 @@ class FormularioBMRepository:
               FROM bien
              WHERE departamento_id = %s
                AND created_at < %s
-               AND estado IN ('Activo', 'En desuso', 'Faltante')
+               AND estado IN ('01', '02', '03', '04', '05', '06', '07')
         """
 
         # Incorporaciones en el mes

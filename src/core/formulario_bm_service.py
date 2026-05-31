@@ -144,8 +144,8 @@ class FormularioBMService:
             if not faltantes:
                 return (
                     False,
-                    "No hay bienes faltantes (Concepto 60) en este "
-                    "departamento.",
+                    "No hay bienes inoperativos irrecuperables (estado 06, "
+                    "Concepto 60) en este departamento.",
                     None,
                     None,
                 )

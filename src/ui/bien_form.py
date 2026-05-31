@@ -9,10 +9,11 @@ from datetime import date
 from typing import Any
 from PyQt6.QtCore import QDate
 from PyQt6.QtWidgets import (
-    QComboBox, QDateEdit, QDialog, QDoubleSpinBox, QFormLayout,
-    QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-    QPushButton, QScrollArea, QSpinBox, QTextEdit, QVBoxLayout, QWidget,
+    QButtonGroup, QComboBox, QDateEdit, QDialog, QDoubleSpinBox, QFormLayout,
+    QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton,
+    QRadioButton, QScrollArea, QSpinBox, QTextEdit, QVBoxLayout, QWidget,
 )
+from src.core import estados
 from src.core.bien_service import BienService
 
 def _btn_style(color: str, hover: str) -> str:
@@ -25,22 +26,13 @@ def _btn_style(color: str, hover: str) -> str:
 class BienFormDialog(QDialog):
     _MONEDAS = ["Bolívares", "Dólares"]
     _TIPOS = ["", "Administrativo", "Ejecutivo", "Operativo", "Técnico"]
-    _ESTADOS = [
-        "01) OPERATIVO, EN USO, EXCELENTE ESTADO",
-        "02) OPERATIVO, EN USO PERO REQUIERE REPARACIÓN",
-        "03) OPERATIVO, SIN USO, EN EXCELENTE ESTADO",
-        "04) OPERATIVO, SIN USO, PERO REQUIERE REPARACIÓN",
-        "05) INOPERATIVO, PERO RECUPERABLE",
-        "06) INOPERATIVO, IRRECUPERABLE",
-        "07) DESINCORPORADO EN DESUSO",
-        "Faltante"
-    ]
 
     def __init__(self, bien_service: BienService, usuario_id: int,
                  modo: str = "nuevo", bien_data: dict[str, Any] | None = None,
-                 parent: QWidget | None = None):
+                 parent: QWidget | None = None, donacion_service=None):
         super().__init__(parent)
         self._service = bien_service
+        self._donacion_service = donacion_service
         self._usuario_id = usuario_id
         self._modo = modo
         self._bien_data = bien_data or {}
@@ -72,6 +64,21 @@ class BienFormDialog(QDialog):
 
         content_widget = QWidget()
         layout = QVBoxLayout(content_widget)
+
+        # Origen del bien (Compra / Donación)
+        grp_origen = QGroupBox("Origen del bien")
+        origen_layout = QHBoxLayout(grp_origen)
+        self._rb_compra = QRadioButton("Compra")
+        self._rb_donacion = QRadioButton("Donación")
+        self._rb_compra.setChecked(True)
+        self._grupo_origen = QButtonGroup(self)
+        self._grupo_origen.addButton(self._rb_compra)
+        self._grupo_origen.addButton(self._rb_donacion)
+        self._rb_compra.toggled.connect(self._on_origen_changed)
+        origen_layout.addWidget(self._rb_compra)
+        origen_layout.addWidget(self._rb_donacion)
+        origen_layout.addStretch()
+        layout.addWidget(grp_origen)
 
         # Identificación
         grp_id = QGroupBox("Identificación")
@@ -113,19 +120,22 @@ class BienFormDialog(QDialog):
         # Adquisición
         grp_a = QGroupBox("Adquisición")
         form_a = QFormLayout(grp_a)
+        self._lbl_orden = QLabel("N° Orden de Compra:")
         self._txt_orden_compra = QLineEdit()
         self._txt_orden_compra.setPlaceholderText("Referencia opcional (RN-03)")
-        form_a.addRow("N° Orden de Compra:", self._txt_orden_compra)
+        form_a.addRow(self._lbl_orden, self._txt_orden_compra)
+        self._lbl_fecha_compra = QLabel("Fecha de compra (*):")
         self._date_compra = QDateEdit()
         self._date_compra.setCalendarPopup(True)
         self._date_compra.setDate(QDate.currentDate())
         self._date_compra.setDisplayFormat("dd/MM/yyyy")
-        form_a.addRow("Fecha de compra (*):", self._date_compra)
+        form_a.addRow(self._lbl_fecha_compra, self._date_compra)
+        self._lbl_precio = QLabel("Precio sin IVA (*):")
         self._spn_precio = QDoubleSpinBox()
-        self._spn_precio.setMinimum(0.01)
+        self._spn_precio.setMinimum(0.00)
         self._spn_precio.setMaximum(999_999_999.99)
         self._spn_precio.setDecimals(2)
-        form_a.addRow("Precio sin IVA (*):", self._spn_precio)
+        form_a.addRow(self._lbl_precio, self._spn_precio)
         self._cmb_moneda = QComboBox()
         self._cmb_moneda.addItems(self._MONEDAS)
         form_a.addRow("Moneda (*):", self._cmb_moneda)
@@ -137,6 +147,28 @@ class BienFormDialog(QDialog):
         form_a.addRow("Vida útil (*):", self._spn_vida_util)
         layout.addWidget(grp_a)
 
+        # Datos de la donación (visibles solo si origen = Donación)
+        self._grp_donacion = QGroupBox("Datos de la donación")
+        form_d = QFormLayout(self._grp_donacion)
+        self._txt_donante = QLineEdit()
+        self._txt_donante.setPlaceholderText("Institución o persona donante")
+        form_d.addRow("Nombre del donante (*):", self._txt_donante)
+        self._cmb_tipo_donante = QComboBox()
+        self._cmb_tipo_donante.addItems(["Institución", "Persona natural"])
+        form_d.addRow("Tipo de donante:", self._cmb_tipo_donante)
+        self._txt_acta = QLineEdit()
+        self._txt_acta.setPlaceholderText("N° de acta o documento (opcional)")
+        form_d.addRow("N° Acta de donación:", self._txt_acta)
+        self._date_donacion = QDateEdit()
+        self._date_donacion.setCalendarPopup(True)
+        self._date_donacion.setDate(QDate.currentDate())
+        self._date_donacion.setDisplayFormat("dd/MM/yyyy")
+        form_d.addRow("Fecha de donación (*):", self._date_donacion)
+        self._txt_obs_donacion = QTextEdit()
+        self._txt_obs_donacion.setMaximumHeight(60)
+        form_d.addRow("Observaciones de la donación:", self._txt_obs_donacion)
+        layout.addWidget(self._grp_donacion)
+
         # Ubicación y contabilidad
         grp_u = QGroupBox("Ubicación y Contabilidad")
         form_u = QFormLayout(grp_u)
@@ -145,7 +177,6 @@ class BienFormDialog(QDialog):
         self._cmb_cuenta = QComboBox()
         form_u.addRow("Cuenta contable (*):", self._cmb_cuenta)
         self._cmb_estado = QComboBox()
-        self._cmb_estado.addItems(self._ESTADOS)
         form_u.addRow("Estado (*):", self._cmb_estado)
         layout.addWidget(grp_u)
 
@@ -170,11 +201,36 @@ class BienFormDialog(QDialog):
             btn_g.setStyleSheet(_btn_style("#1B7F3A", "#238C47"))
             btn_g.clicked.connect(self._on_guardar)
             bl.addWidget(btn_g)
+        if self._modo == "ver":
+            btn_stk = QPushButton("🏷 Imprimir Sticker")
+            btn_stk.setStyleSheet(_btn_style("#5C6B73", "#6D7F88"))
+            btn_stk.clicked.connect(self._on_sticker)
+            bl.addWidget(btn_stk)
         btn_c = QPushButton("✖ Cerrar" if self._modo == "ver" else "✖ Cancelar")
         btn_c.setStyleSheet(_btn_style("#CC0000", "#FF3333"))
         btn_c.clicked.connect(self.reject)
         bl.addWidget(btn_c)
         main_layout.addLayout(bl)
+
+        # Aplicar visibilidad inicial según el origen seleccionado.
+        self._on_origen_changed()
+
+    def _on_origen_changed(self, *_args) -> None:
+        """Muestra/oculta los campos según el origen (Compra / Donación)."""
+        es_donacion = self._rb_donacion.isChecked()
+        # Orden de compra: solo para compras.
+        self._lbl_orden.setVisible(not es_donacion)
+        self._txt_orden_compra.setVisible(not es_donacion)
+        # Fecha de compra: solo para compras (en donación se usa la fecha
+        # de donación como fecha de incorporación contable).
+        self._lbl_fecha_compra.setVisible(not es_donacion)
+        self._date_compra.setVisible(not es_donacion)
+        # Grupo de datos de la donación.
+        self._grp_donacion.setVisible(es_donacion)
+        # Etiqueta del precio según el origen.
+        self._lbl_precio.setText(
+            "Valor estimado:" if es_donacion else "Precio sin IVA (*):"
+        )
 
     def _cargar_combos(self) -> None:
         self._cmb_categoria.clear()
@@ -203,6 +259,21 @@ class BienFormDialog(QDialog):
                     f"{cc['codigo']} — {cc['descripcion']}", cc["codigo"])
         except Exception:
             pass
+        # Estados: cargados desde el catálogo (código + descripción).
+        self._cmb_estado.clear()
+        try:
+            for est in self._service.obtener_estados():
+                self._cmb_estado.addItem(
+                    estados.etiqueta(est["codigo"], est.get("descripcion")),
+                    est["codigo"],
+                )
+        except Exception:
+            for codigo, desc in estados.ESTADOS.items():
+                self._cmb_estado.addItem(estados.etiqueta(codigo, desc), codigo)
+        # Por defecto, estado 01 (operativo) en alta nueva.
+        idx_def = self._cmb_estado.findData(estados.ESTADO_DEFECTO)
+        if idx_def >= 0:
+            self._cmb_estado.setCurrentIndex(idx_def)
 
     def _cargar_datos(self) -> None:
         d = self._bien_data
@@ -243,12 +314,48 @@ class BienFormDialog(QDialog):
         idx_cc = self._cmb_cuenta.findData(d.get("cuenta_contable"))
         if idx_cc >= 0:
             self._cmb_cuenta.setCurrentIndex(idx_cc)
-        idx_e = self._cmb_estado.findText(d.get("estado", "Activo"))
+        idx_e = self._cmb_estado.findData(d.get("estado", estados.ESTADO_DEFECTO))
         if idx_e >= 0:
             self._cmb_estado.setCurrentIndex(idx_e)
         self._txt_observaciones.setPlainText(d.get("observaciones", "") or "")
 
+        # Origen y, si aplica, datos de la donación.
+        origen = (d.get("origen") or "COMPRA").upper()
+        if origen == "DONACION":
+            self._rb_donacion.setChecked(True)
+        else:
+            self._rb_compra.setChecked(True)
+        self._on_origen_changed()
+
+        if origen == "DONACION" and self._donacion_service is not None:
+            try:
+                don = self._donacion_service.obtener_donacion_por_bien(d.get("id"))
+            except Exception:
+                don = None
+            if don:
+                self._txt_donante.setText(don.get("donante", "") or "")
+                idx_td = self._cmb_tipo_donante.findText(
+                    don.get("tipo_donante", "") or "")
+                if idx_td >= 0:
+                    self._cmb_tipo_donante.setCurrentIndex(idx_td)
+                self._txt_acta.setText(don.get("acta_numero", "") or "")
+                fd = don.get("fecha_donacion")
+                if fd:
+                    if isinstance(fd, date):
+                        self._date_donacion.setDate(
+                            QDate(fd.year, fd.month, fd.day))
+                    else:
+                        try:
+                            p = str(fd)[:10].split("-")
+                            self._date_donacion.setDate(
+                                QDate(int(p[0]), int(p[1]), int(p[2])))
+                        except (IndexError, ValueError):
+                            pass
+                self._txt_obs_donacion.setPlainText(don.get("descripcion", "") or "")
+
     def _bloquear_campos(self) -> None:
+        self._rb_compra.setEnabled(False)
+        self._rb_donacion.setEnabled(False)
         for w in self.findChildren(QLineEdit):
             w.setReadOnly(True)
         for w in self.findChildren(QTextEdit):
@@ -285,7 +392,8 @@ class BienFormDialog(QDialog):
             "vida_util_meses": self._spn_vida_util.value(),
             "departamento_id": self._cmb_departamento.currentData(),
             "cuenta_contable": self._cmb_cuenta.currentData(),
-            "estado": self._cmb_estado.currentText(),
+            "estado": self._cmb_estado.currentData(),
+            "origen": "DONACION" if self._rb_donacion.isChecked() else "COMPRA",
             "observaciones": self._txt_observaciones.toPlainText().strip() or None,
         }
         # Validación UI
@@ -308,10 +416,53 @@ class BienFormDialog(QDialog):
             QMessageBox.warning(self, "Validación", "Seleccione una cuenta contable.")
             return
 
-        ok, mensaje, bien_id = self._service.registrar_bien(datos, self._usuario_id)
+        # --- Donación vs Compra ---
+        if self._rb_donacion.isChecked():
+            donante = self._txt_donante.text().strip()
+            if not donante:
+                QMessageBox.warning(
+                    self, "Validación",
+                    "Ingrese el nombre del donante (RD-01).")
+                self._txt_donante.setFocus()
+                return
+            if self._donacion_service is None:
+                QMessageBox.warning(
+                    self, "Módulo no disponible",
+                    "El módulo de donaciones no está disponible en esta "
+                    "ventana.")
+                return
+
+            # En donación, la fecha de donación es la fecha de incorporación.
+            fecha_donacion = self._date_donacion.date().toString("yyyy-MM-dd")
+            datos["fecha_compra"] = fecha_donacion
+            datos["orden_compra"] = None
+            datos_donacion = {
+                "donante": donante,
+                "tipo_donante": self._cmb_tipo_donante.currentText(),
+                "acta_numero": self._txt_acta.text().strip() or None,
+                "fecha_donacion": fecha_donacion,
+                "descripcion": self._txt_obs_donacion.toPlainText().strip() or None,
+            }
+            ok, mensaje, bien_id = self._donacion_service.registrar_donacion(
+                datos, datos_donacion, self._usuario_id)
+        else:
+            ok, mensaje, bien_id = self._service.registrar_bien(
+                datos, self._usuario_id)
+
         if ok:
             QMessageBox.information(self, "Bien registrado",
                                     f"{mensaje}\nID asignado: {bien_id}")
             self.accept()
         else:
             QMessageBox.warning(self, "Error de validación", mensaje)
+
+    def _on_sticker(self) -> None:
+        """Abre el diálogo de stickers preseleccionando este bien."""
+        from src.ui.sticker_panel import StickerDialog
+        dialog = StickerDialog(
+            bien_service=self._service,
+            usuario_id=self._usuario_id,
+            bien_inicial=self._bien_data,
+            parent=self,
+        )
+        dialog.exec()

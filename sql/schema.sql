@@ -8,12 +8,14 @@
 -- LIMPIEZA DE TABLAS (En orden de dependencias)
 -- ==========================================
 DROP TABLE IF EXISTS auditoria CASCADE;
+DROP TABLE IF EXISTS donacion CASCADE;
 DROP TABLE IF EXISTS formulario_bm CASCADE;
 DROP TABLE IF EXISTS movimiento CASCADE;
 DROP TABLE IF EXISTS bien CASCADE;
 DROP TABLE IF EXISTS cuenta_contable CASCADE;
 DROP TABLE IF EXISTS categoria CASCADE;
 DROP TABLE IF EXISTS departamento CASCADE;
+DROP TABLE IF EXISTS catalogo_estado CASCADE;
 DROP TABLE IF EXISTS usuario CASCADE;
 
 
@@ -56,6 +58,14 @@ CREATE TABLE cuenta_contable (
     activo BOOLEAN NOT NULL DEFAULT TRUE
 );
 
+-- Catálogo de los 7 estados oficiales del bien mueble.
+-- El código (01..07) es el valor que se almacena en bien.estado.
+CREATE TABLE catalogo_estado (
+    codigo VARCHAR(2) PRIMARY KEY,
+    descripcion TEXT NOT NULL,
+    activo BOOLEAN NOT NULL DEFAULT TRUE
+);
+
 
 -- ==========================================
 -- 2. NÚCLEO (CORE) - BIENES Y MOVIMIENTOS
@@ -80,16 +90,13 @@ CREATE TABLE bien (
     vida_util_meses INT NOT NULL DEFAULT 60,
     departamento_id INT NOT NULL REFERENCES departamento(id),
     cuenta_contable VARCHAR(20) NOT NULL REFERENCES cuenta_contable(codigo),
-    estado VARCHAR(100) NOT NULL CHECK (estado IN (
-        '01) OPERATIVO, EN USO, EXCELENTE ESTADO',
-        '02) OPERATIVO, EN USO PERO REQUIERE REPARACIÓN',
-        '03) OPERATIVO, SIN USO, EN EXCELENTE ESTADO',
-        '04) OPERATIVO, SIN USO, PERO REQUIERE REPARACIÓN',
-        '05) INOPERATIVO, PERO RECUPERABLE',
-        '06) INOPERATIVO, IRRECUPERABLE',
-        '07) DESINCORPORADO EN DESUSO',
-        'Faltante'
+    -- Estado del bien: código de 2 dígitos del catálogo catalogo_estado.
+    estado VARCHAR(2) NOT NULL DEFAULT '01' CHECK (estado IN (
+        '01', '02', '03', '04', '05', '06', '07'
     )),
+    -- Origen del bien: adquirido por compra o recibido en donación.
+    origen VARCHAR(20) NOT NULL DEFAULT 'COMPRA'
+        CHECK (origen IN ('COMPRA', 'DONACION')),
     observaciones TEXT,
     creado_por INT REFERENCES usuario(id),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -106,6 +113,20 @@ CREATE TABLE movimiento (
     registrado_por INT NOT NULL REFERENCES usuario(id),
     fecha_movimiento TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     observaciones TEXT
+);
+
+-- Donaciones: incorporación de un bien SIN orden de compra ni proveedor.
+-- En su lugar hay un donante y, opcionalmente, un acta/documento.
+CREATE TABLE donacion (
+    id SERIAL PRIMARY KEY,
+    bien_id INT NOT NULL REFERENCES bien(id),
+    donante VARCHAR(200) NOT NULL,          -- nombre institución o persona
+    tipo_donante VARCHAR(50),               -- Institución / Persona natural
+    acta_numero VARCHAR(100),               -- número del acta de donación
+    fecha_donacion DATE NOT NULL,
+    descripcion TEXT,                       -- observaciones de la donación
+    registrado_por INT REFERENCES usuario(id),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE formulario_bm (
@@ -145,6 +166,7 @@ CREATE INDEX idx_bien_codigo_activo ON bien(codigo_activo);
 CREATE INDEX idx_bien_estado ON bien(estado);
 CREATE INDEX idx_bien_departamento_id ON bien(departamento_id);
 CREATE INDEX idx_movimiento_bien_id ON movimiento(bien_id);
+CREATE INDEX idx_donacion_bien_id ON donacion(bien_id);
 CREATE INDEX idx_auditoria_usuario_id ON auditoria(usuario_id);
 CREATE INDEX idx_auditoria_fecha_hora ON auditoria(fecha_hora);
 
@@ -152,6 +174,16 @@ CREATE INDEX idx_auditoria_fecha_hora ON auditoria(fecha_hora);
 -- ==========================================
 -- 5. DATOS INICIALES (SEEDS)
 -- ==========================================
+
+-- 5.0 Catálogo de estados del bien (7 estados oficiales)
+INSERT INTO catalogo_estado (codigo, descripcion) VALUES
+('01', 'OPERATIVO, EN USO, EXCELENTE ESTADO'),
+('02', 'OPERATIVO, EN USO PERO REQUIERE REPARACIÓN'),
+('03', 'OPERATIVO, SIN USO, EN EXCELENTE ESTADO'),
+('04', 'OPERATIVO, SIN USO, PERO REQUIERE REPARACIÓN'),
+('05', 'INOPERATIVO, PERO RECUPERABLE'),
+('06', 'INOPERATIVO, IRRECUPERABLE'),
+('07', 'DESINCORPORADO EN DESUSO');
 
 -- 5.1 Cuentas contables (Plan de cuentas 2-1-214-XX)
 INSERT INTO cuenta_contable (codigo, descripcion) VALUES

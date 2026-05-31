@@ -14,6 +14,7 @@ from typing import Any
 from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.units import mm
 
+from src.core import estados
 from src.reports.bm_base import (
     BMBase, USABLE_WIDTH, COLOR_BORDER, COLOR_HIGHLIGHT,
 )
@@ -124,7 +125,10 @@ class BM3Faltantes(BMBase):
                     self.style_body_center,
                 ),
                 Paragraph(
-                    str(f.get("descripcion", "")),
+                    f"{f.get('descripcion', '')}"
+                    f"<br/><font size='6'>Estado: "
+                    f"{estados.etiqueta(f.get('estado'), f.get('estado_descripcion'))}"
+                    f"</font>",
                     self.style_body,
                 ),
                 Paragraph(

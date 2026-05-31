@@ -11,6 +11,7 @@ Estilo de escritorio clásico (NF-07) — sin estilos modernos.
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QComboBox,
     QGroupBox,
@@ -26,10 +27,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.core import estados
 from src.core.bien_service import BienService
 from src.core.auth import Session
 from src.ui.bien_estado import BienEstadoDialog
 from src.ui.bien_form import BienFormDialog
+from src.ui.sticker_panel import StickerDialog
 
 
 def _btn_style(color: str, hover: str) -> str:
@@ -62,9 +65,11 @@ class BienListadoWidget(QWidget):
         bien_service: BienService,
         usuario_id: int,
         parent: QWidget | None = None,
+        donacion_service=None,
     ):
         super().__init__(parent)
         self._service = bien_service
+        self._donacion_service = donacion_service
         self._usuario_id = usuario_id
 
         # Datos en memoria para la tabla
@@ -139,20 +144,10 @@ class BienListadoWidget(QWidget):
         self._filtro_departamento.setMinimumWidth(160)
         h_layout.addWidget(self._filtro_departamento)
 
-        # Estado
+        # Estado (las opciones se cargan desde catalogo_estado)
         h_layout.addWidget(QLabel("Estado:"))
         self._filtro_estado = QComboBox()
-        self._filtro_estado.addItems([
-            "Todos",
-            "01) OPERATIVO, EN USO, EXCELENTE ESTADO",
-            "02) OPERATIVO, EN USO PERO REQUIERE REPARACIÓN",
-            "03) OPERATIVO, SIN USO, EN EXCELENTE ESTADO",
-            "04) OPERATIVO, SIN USO, PERO REQUIERE REPARACIÓN",
-            "05) INOPERATIVO, PERO RECUPERABLE",
-            "06) INOPERATIVO, IRRECUPERABLE",
-            "07) DESINCORPORADO EN DESUSO",
-            "Faltante"
-        ])
+        self._filtro_estado.setMinimumWidth(180)
         h_layout.addWidget(self._filtro_estado)
 
         # Botón buscar
@@ -181,6 +176,11 @@ class BienListadoWidget(QWidget):
         self._btn_estado.setStyleSheet(_btn_style("#8B4513", "#A0522D"))
         self._btn_estado.clicked.connect(self._on_cambiar_estado)
         h_layout.addWidget(self._btn_estado)
+
+        self._btn_sticker = QPushButton("🏷 Sticker")
+        self._btn_sticker.setStyleSheet(_btn_style("#5C6B73", "#6D7F88"))
+        self._btn_sticker.clicked.connect(self._on_sticker)
+        h_layout.addWidget(self._btn_sticker)
 
         h_layout.addStretch()
 
@@ -212,6 +212,19 @@ class BienListadoWidget(QWidget):
         except Exception:
             pass  # Si falla, el combo queda solo con "Todos"
 
+        # Estados (7 opciones desde catalogo_estado + "Todos")
+        self._filtro_estado.clear()
+        self._filtro_estado.addItem("Todos", None)
+        try:
+            for est in self._service.obtener_estados():
+                self._filtro_estado.addItem(
+                    estados.etiqueta(est["codigo"], est.get("descripcion")),
+                    est["codigo"],
+                )
+        except Exception:
+            for codigo, desc in estados.ESTADOS.items():
+                self._filtro_estado.addItem(estados.etiqueta(codigo, desc), codigo)
+
     def _actualizar_tabla(self) -> None:
         """Recarga la tabla con todos los bienes (sin filtros)."""
         try:
@@ -233,18 +246,29 @@ class BienListadoWidget(QWidget):
         for fila, bien in enumerate(self._datos):
             self._tabla.insertRow(fila)
 
+            codigo_estado = bien.get("estado", "")
+            estado_texto = estados.etiqueta(
+                codigo_estado, bien.get("estado_descripcion")
+            )
+
             items = [
                 bien.get("codigo_activo", ""),
                 bien.get("descripcion", ""),
                 bien.get("categoria_nombre", ""),
                 bien.get("departamento_nombre", ""),
-                bien.get("estado", ""),
+                estado_texto,
                 str(bien.get("created_at", ""))[:10],  # solo fecha
             ]
+
+            # Color de fondo de la fila según el estado (05/06/07).
+            color = estados.color_fondo(codigo_estado)
+            brush = QColor(color) if color else None
 
             for col, texto in enumerate(items):
                 item = QTableWidgetItem(str(texto))
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                if brush is not None:
+                    item.setBackground(brush)
                 self._tabla.setItem(fila, col, item)
 
     # ------------------------------------------------------------------
@@ -257,8 +281,7 @@ class BienListadoWidget(QWidget):
 
         dep_id = self._filtro_departamento.currentData()
 
-        estado_txt = self._filtro_estado.currentText()
-        estado = estado_txt if estado_txt != "Todos" else None
+        estado = self._filtro_estado.currentData()
 
         try:
             self._datos = self._service.buscar_bienes(
@@ -294,6 +317,7 @@ class BienListadoWidget(QWidget):
             usuario_id=self._usuario_id,
             modo="nuevo",
             parent=self,
+            donacion_service=self._donacion_service,
         )
         if dialog.exec():
             self._actualizar_tabla()
@@ -320,6 +344,7 @@ class BienListadoWidget(QWidget):
             modo="ver",
             bien_data=bien,
             parent=self,
+            donacion_service=self._donacion_service,
         )
         dialog.exec()
 
@@ -347,3 +372,18 @@ class BienListadoWidget(QWidget):
         )
         if dialog.exec():
             self._actualizar_tabla()
+
+    def _on_sticker(self) -> None:
+        """Abre el diálogo de stickers, preseleccionando el bien activo."""
+        fila = self._tabla.currentRow()
+        bien_inicial = None
+        if 0 <= fila < len(self._datos):
+            bien_inicial = self._datos[fila]
+
+        dialog = StickerDialog(
+            bien_service=self._service,
+            usuario_id=self._usuario_id,
+            bien_inicial=bien_inicial,
+            parent=self,
+        )
+        dialog.exec()

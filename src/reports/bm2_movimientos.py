@@ -13,6 +13,7 @@ from typing import Any
 from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.units import mm
 
+from src.core import estados
 from src.reports.bm_base import (
     BMBase, USABLE_WIDTH, MESES, COLOR_BORDER, COLOR_HIGHLIGHT,
 )
@@ -134,7 +135,15 @@ class BM2Movimientos(BMBase):
                     self.style_body_center,
                 ),
                 Paragraph(
-                    str(mov.get("descripcion", "")),
+                    f"{mov.get('descripcion', '')}"
+                    f"<br/><font size='6'>Estado: "
+                    f"{estados.etiqueta(mov.get('estado'), mov.get('estado_descripcion'))}"
+                    f"</font>"
+                    + (
+                        f"<br/><font size='6'>Concepto: {mov.get('motivo')}</font>"
+                        if (mov.get("motivo") or "").upper().startswith("DONACI")
+                        else ""
+                    ),
                     self.style_body,
                 ),
                 Paragraph(

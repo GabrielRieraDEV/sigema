@@ -39,16 +39,20 @@ from src.db.connection import DBConnection
 from src.db.bien_repository import BienRepository
 from src.db.movimiento_repository import MovimientoRepository
 from src.db.formulario_bm_repository import FormularioBMRepository
+from src.db.donacion_repository import DonacionRepository
 from src.db.usuario_repository import UsuarioRepository
 from src.db.catalogo_repository import CatalogoRepository
 from src.db.auditoria_repository import AuditoriaRepository
 from src.core.bien_service import BienService
 from src.core.formulario_bm_service import FormularioBMService
+from src.core.donacion_service import DonacionService
 from src.ui.bien_listado import BienListadoWidget
+from src.ui.donaciones_listado import DonacionesListadoWidget
 from src.ui.formularios_bm import FormulariosBMWidget
 from src.ui.usuarios import UsuariosWidget
 from src.ui.catalogos import CatalogosWidget
 from src.ui.auditoria_panel import AuditoriaPanelWidget
+from src.ui.migracion_panel import MigracionPanelWidget
 
 # Intervalo del timer de inactividad (ms). Comprueba cada 60 seg.
 _TIMER_INTERVAL_MS = 60_000
@@ -79,6 +83,7 @@ class MainWindow(QMainWindow):
         db: DBConnection,
         bien_service: BienService,
         formulario_service: FormularioBMService,
+        donacion_service: DonacionService,
         usuario_repo: UsuarioRepository,
         catalogo_repo: CatalogoRepository,
         auditoria_repo: AuditoriaRepository,
@@ -87,6 +92,7 @@ class MainWindow(QMainWindow):
         self._db = db
         self._bien_service = bien_service
         self._formulario_service = formulario_service
+        self._donacion_service = donacion_service
         self._usuario_repo = usuario_repo
         self._catalogo_repo = catalogo_repo
         self._auditoria_repo = auditoria_repo
@@ -178,8 +184,18 @@ class MainWindow(QMainWindow):
         listado = BienListadoWidget(
             bien_service=self._bien_service,
             usuario_id=self._usuario_id,
+            donacion_service=self._donacion_service,
         )
         self._tabs.addTab(listado, "Bienes Muebles")
+
+        # Donaciones — todos los perfiles con acceso a bienes
+        if session.tiene_permiso("bienes.ver"):
+            donaciones = DonacionesListadoWidget(
+                bien_service=self._bien_service,
+                donacion_service=self._donacion_service,
+                usuario_id=self._usuario_id,
+            )
+            self._tabs.addTab(donaciones, "Donaciones")
 
         # Formularios BM — Almacenista y Administrador
         if session.tiene_permiso("formularios.generar") or session.tiene_permiso("formularios.ver"):
@@ -208,6 +224,13 @@ class MainWindow(QMainWindow):
             self._tabs.addTab(
                 AuditoriaPanelWidget(self._auditoria_repo),
                 "Auditoría"
+            )
+
+        # Migración de datos — solo Administrador
+        if session.tiene_permiso("usuarios.gestionar"):
+            self._tabs.addTab(
+                MigracionPanelWidget(self._db, self._usuario_id),
+                "Migración"
             )
 
         main_layout.addWidget(self._tabs)
@@ -374,6 +397,7 @@ def _abrir_ventana_principal(db: DBConnection) -> None:
     bien_repo = BienRepository(db)
     mov_repo = MovimientoRepository(db)
     formulario_repo = FormularioBMRepository(db)
+    donacion_repo = DonacionRepository(db)
     usuario_repo = UsuarioRepository(db)
     catalogo_repo = CatalogoRepository(db)
     auditoria_repo = AuditoriaRepository(db)
@@ -381,11 +405,13 @@ def _abrir_ventana_principal(db: DBConnection) -> None:
     # Servicios
     bien_service = BienService(bien_repo, mov_repo)
     formulario_service = FormularioBMService(formulario_repo)
+    donacion_service = DonacionService(bien_service, donacion_repo)
 
     window = MainWindow(
         db=db,
         bien_service=bien_service,
         formulario_service=formulario_service,
+        donacion_service=donacion_service,
         usuario_repo=usuario_repo,
         catalogo_repo=catalogo_repo,
         auditoria_repo=auditoria_repo,

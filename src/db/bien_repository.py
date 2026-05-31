@@ -60,7 +60,7 @@ class BienRepository:
                 categoria_id, marca, modelo, serial_bien, color,
                 tipo, num_piezas, orden_compra, fecha_compra,
                 precio_sin_iva, moneda, vida_util_meses,
-                departamento_id, cuenta_contable, estado,
+                departamento_id, cuenta_contable, estado, origen,
                 observaciones, creado_por
             ) VALUES (
                 %(codigo_activo)s, %(codigo_nivel)s, %(descripcion)s,
@@ -68,8 +68,8 @@ class BienRepository:
                 %(color)s, %(tipo)s, %(num_piezas)s, %(orden_compra)s,
                 %(fecha_compra)s, %(precio_sin_iva)s, %(moneda)s,
                 %(vida_util_meses)s, %(departamento_id)s,
-                %(cuenta_contable)s, %(estado)s, %(observaciones)s,
-                %(creado_por)s
+                %(cuenta_contable)s, %(estado)s, %(origen)s,
+                %(observaciones)s, %(creado_por)s
             )
             RETURNING id
         """
@@ -88,11 +88,13 @@ class BienRepository:
                 b.*,
                 c.nombre        AS categoria_nombre,
                 d.nombre        AS departamento_nombre,
-                cc.descripcion  AS cuenta_contable_descripcion
+                cc.descripcion  AS cuenta_contable_descripcion,
+                ce.descripcion  AS estado_descripcion
             FROM bien b
             JOIN categoria c       ON b.categoria_id   = c.id
             JOIN departamento d    ON b.departamento_id = d.id
             JOIN cuenta_contable cc ON b.cuenta_contable = cc.codigo
+            LEFT JOIN catalogo_estado ce ON b.estado = ce.codigo
             WHERE b.codigo_activo = %s
         """
         with self._db.get_cursor() as cur:
@@ -109,11 +111,13 @@ class BienRepository:
                 b.*,
                 c.nombre        AS categoria_nombre,
                 d.nombre        AS departamento_nombre,
-                cc.descripcion  AS cuenta_contable_descripcion
+                cc.descripcion  AS cuenta_contable_descripcion,
+                ce.descripcion  AS estado_descripcion
             FROM bien b
             JOIN categoria c       ON b.categoria_id   = c.id
             JOIN departamento d    ON b.departamento_id = d.id
             JOIN cuenta_contable cc ON b.cuenta_contable = cc.codigo
+            LEFT JOIN catalogo_estado ce ON b.estado = ce.codigo
             WHERE b.id = %s
         """
         with self._db.get_cursor() as cur:
@@ -130,7 +134,8 @@ class BienRepository:
         """Búsqueda dinámica con filtros opcionales.
 
         Los filtros de texto usan ILIKE para búsqueda parcial
-        case-insensitive.
+        case-insensitive.  El filtro ``estado`` usa el código del
+        catálogo (01..07), no la descripción.
         """
         conditions: list[str] = []
         params: list[Any] = []
@@ -155,10 +160,13 @@ class BienRepository:
                 b.id, b.codigo_activo, b.descripcion,
                 c.nombre        AS categoria_nombre,
                 d.nombre        AS departamento_nombre,
-                b.estado, b.created_at
+                b.estado,
+                ce.descripcion  AS estado_descripcion,
+                b.created_at
             FROM bien b
             JOIN categoria c    ON b.categoria_id   = c.id
             JOIN departamento d ON b.departamento_id = d.id
+            LEFT JOIN catalogo_estado ce ON b.estado = ce.codigo
             {where}
             ORDER BY b.created_at DESC
         """
@@ -201,10 +209,13 @@ class BienRepository:
                 b.id, b.codigo_activo, b.descripcion,
                 c.nombre        AS categoria_nombre,
                 d.nombre        AS departamento_nombre,
-                b.estado, b.created_at
+                b.estado,
+                ce.descripcion  AS estado_descripcion,
+                b.created_at
             FROM bien b
             JOIN categoria c    ON b.categoria_id   = c.id
             JOIN departamento d ON b.departamento_id = d.id
+            LEFT JOIN catalogo_estado ce ON b.estado = ce.codigo
             WHERE b.departamento_id = %s
             ORDER BY b.codigo_activo
         """
@@ -218,6 +229,18 @@ class BienRepository:
     def listar_categorias(self) -> list[dict[str, Any]]:
         """Retorna todas las categorías activas."""
         sql = "SELECT id, nombre FROM categoria WHERE activo = TRUE ORDER BY nombre"
+        with self._db.get_cursor() as cur:
+            cur.execute(sql)
+            return self._rows_to_list(cur, cur.fetchall())
+
+    def listar_estados(self) -> list[dict[str, Any]]:
+        """Retorna los estados activos del catálogo (código y descripción)."""
+        sql = """
+            SELECT codigo, descripcion
+              FROM catalogo_estado
+             WHERE activo = TRUE
+             ORDER BY codigo
+        """
         with self._db.get_cursor() as cur:
             cur.execute(sql)
             return self._rows_to_list(cur, cur.fetchall())

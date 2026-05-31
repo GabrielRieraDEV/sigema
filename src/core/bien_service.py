@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core import estados
 from src.db.bien_repository import BienRepository
 from src.db.movimiento_repository import MovimientoRepository
 
@@ -53,18 +54,26 @@ class BienService:
     # Registrar bien (CU-01)
     # ------------------------------------------------------------------
     def registrar_bien(
-        self, datos: dict[str, Any], usuario_id: int
+        self,
+        datos: dict[str, Any],
+        usuario_id: int,
+        motivo_incorporacion: str = "Alta de bien nuevo",
     ) -> tuple[bool, str, int | None]:
         """Registra un nuevo bien mueble.
 
         Validaciones aplicadas:
         - Campos obligatorios presentes y no vacíos.
         - RN-01: código activo no duplicado.
-        - RN-05: precio > 0.
+        - RN-05: precio > 0 para compras (las donaciones admiten 0).
         - RN-06: vida útil default 60 meses si no se proporciona.
 
         Al crear el bien, también registra un movimiento de tipo
-        'Incorporación'.
+        'Incorporación'.  El texto ``motivo_incorporacion`` se usa como
+        motivo de ese movimiento (p.ej. el módulo de donaciones pasa
+        ``"DONACIÓN - <donante>"`` para que aparezca así en el BM-2).
+
+        ``datos['origen']`` indica el origen del bien ('COMPRA' por
+        defecto o 'DONACION').
 
         Returns
         -------
@@ -91,18 +100,27 @@ class BienService:
                 None,
             )
 
-        # --- RN-05: precio sin IVA > 0 ---
+        # --- Origen del bien (COMPRA por defecto / DONACION) ---
+        origen = (datos.get("origen") or "COMPRA").upper()
+        if origen not in ("COMPRA", "DONACION"):
+            return (False, f"Origen '{origen}' no válido (COMPRA/DONACION).", None)
+
+        # --- RN-05: precio sin IVA > 0 (las donaciones admiten 0) ---
         try:
-            precio = float(datos["precio_sin_iva"])
+            precio = float(datos.get("precio_sin_iva") or 0)
         except (ValueError, TypeError):
             return (False, "El precio unitario debe ser un número válido.", None)
 
-        if precio <= 0:
+        if origen == "DONACION":
+            if precio < 0:
+                return (False, "El valor estimado no puede ser negativo.", None)
+        elif precio <= 0:
             return (
                 False,
                 "El precio unitario (sin IVA) debe ser mayor que cero (RN-05).",
                 None,
             )
+        datos["precio_sin_iva"] = precio
 
         # --- RN-06: vida útil default 60 meses ---
         if not datos.get("vida_util_meses"):
@@ -117,7 +135,19 @@ class BienService:
         datos.setdefault("num_piezas", 1)
         datos.setdefault("orden_compra", None)       # RN-03: opcional
         datos.setdefault("observaciones", None)
-        datos.setdefault("estado", "Activo")
+        datos["origen"] = origen
+
+        # Estado inicial: por defecto 01 (operativo). Validar contra el
+        # catálogo de los 7 estados oficiales.
+        estado_inicial = datos.get("estado") or estados.ESTADO_DEFECTO
+        if not estados.es_valido(estado_inicial):
+            return (
+                False,
+                f"El estado '{estado_inicial}' no es válido. "
+                f"Use un código del catálogo (01–07).",
+                None,
+            )
+        datos["estado"] = estado_inicial
         datos["creado_por"] = usuario_id
 
         # --- Persistir ---
@@ -130,7 +160,7 @@ class BienService:
                 tipo="Incorporación",
                 dept_origen=None,
                 dept_destino=datos["departamento_id"],
-                motivo="Alta de bien nuevo",
+                motivo=motivo_incorporacion,
                 responsable=None,
                 usuario_id=usuario_id,
             )
@@ -148,82 +178,126 @@ class BienService:
         bien_id: int,
         nuevo_estado: str,
         motivo: str | None,
-        responsable: str | None,
         usuario_id: int,
     ) -> tuple[bool, str]:
-        """Cambia el estado de un bien aplicando reglas de negocio.
+        """Cambia el estado de un bien aplicando las reglas de los 7 estados.
 
-        - RN-02: no se elimina, solo se cambia el estado.
-        - RN-04: desincorporación requiere motivo.
-        - Si nuevo_estado == 'Faltante', requiere motivo Y responsable.
+        Reglas (ver :mod:`src.core.estados`):
+        - 01–04 (operativos): cambian libremente entre sí; no generan BM-2.
+        - 05 (inoperativo recuperable): requiere descripción del daño; no
+          genera BM-2 todavía.
+        - 06 (inoperativo irrecuperable): requiere descripción del daño,
+          genera entrada en BM-3 (Concepto 60) y queda bloqueado salvo a 07.
+        - 07 (desincorporado en desuso): requiere motivo de desincorporación,
+          genera entrada en BM-2 y es terminal.
+
+        El parámetro ``motivo`` transporta la descripción del daño (05/06)
+        o el motivo de desincorporación (07) según el estado destino.
 
         Returns
         -------
         tuple[bool, str]
             (éxito, mensaje)
         """
-        # Validar que el estado sea válido
-        estados_validos = {"Activo", "En desuso", "Faltante"}
-        if nuevo_estado not in estados_validos:
+        # Validar que el código de estado destino sea oficial
+        if not estados.es_valido(nuevo_estado):
             return (
                 False,
                 f"Estado '{nuevo_estado}' no válido. "
-                f"Use: {', '.join(sorted(estados_validos))}.",
+                f"Use un código del catálogo (01–07).",
             )
-
-        # RN-04: motivo obligatorio para En desuso y Faltante
-        if nuevo_estado in ("En desuso", "Faltante"):
-            if not motivo or not motivo.strip():
-                return (
-                    False,
-                    "Debe indicar un motivo para el cambio de estado (RN-04).",
-                )
-
-        # Faltante requiere responsable
-        if nuevo_estado == "Faltante":
-            if not responsable or not responsable.strip():
-                return (
-                    False,
-                    "Debe indicar el responsable del bien faltante "
-                    "(Concepto 60).",
-                )
 
         # Obtener datos actuales del bien
         bien = self._bien_repo.buscar_por_id(bien_id)
         if bien is None:
             return (False, f"No se encontró un bien con id {bien_id}.")
 
-        if bien["estado"] == nuevo_estado:
-            return (False, f"El bien ya se encuentra en estado '{nuevo_estado}'.")
+        actual = bien.get("estado")
+        if actual == nuevo_estado:
+            return (
+                False,
+                f"El bien ya se encuentra en el estado "
+                f"{estados.etiqueta(nuevo_estado)}.",
+            )
 
-        # Determinar tipo de movimiento
-        if nuevo_estado == "En desuso":
-            tipo_mov = "Desincorporación"
-        elif nuevo_estado == "Faltante":
-            tipo_mov = "Marcado como faltante"
-        else:
-            tipo_mov = "Incorporación"  # Reactivación
+        # Validar transición permitida
+        if not estados.transicion_valida(actual, nuevo_estado):
+            if actual == estados.DESINCORPORADO:
+                return (
+                    False,
+                    "El bien está DESINCORPORADO (07): es un estado terminal "
+                    "y no puede cambiar a ningún otro estado.",
+                )
+            if actual == "06":
+                return (
+                    False,
+                    "El bien está INOPERATIVO IRRECUPERABLE (06): solo puede "
+                    "pasar a DESINCORPORADO EN DESUSO (07).",
+                )
+            return (
+                False,
+                f"No se permite cambiar del estado {estados.etiqueta(actual)} "
+                f"al estado {estados.etiqueta(nuevo_estado)}.",
+            )
+
+        motivo = (motivo or "").strip()
+
+        # Campos obligatorios según el estado destino
+        if nuevo_estado in estados.REQUIERE_DESCRIPCION_DANO and not motivo:
+            return (
+                False,
+                "Debe indicar la descripción del daño para los estados "
+                "INOPERATIVOS (05/06).",
+            )
+        if nuevo_estado == estados.REQUIERE_MOTIVO_DESINCORPORACION and not motivo:
+            return (
+                False,
+                "Debe indicar el motivo de desincorporación (estado 07).",
+            )
 
         try:
-            # Actualizar estado en tabla bien
+            # Actualizar estado en la tabla bien
             ok = self._bien_repo.actualizar_estado(
-                bien_id, nuevo_estado, motivo, usuario_id
+                bien_id, nuevo_estado, motivo or None, usuario_id
             )
             if not ok:
                 return (False, "No se pudo actualizar el estado del bien.")
 
-            # Registrar movimiento
-            self._mov_repo.registrar(
-                bien_id=bien_id,
-                tipo=tipo_mov,
-                dept_origen=bien["departamento_id"],
-                dept_destino=bien["departamento_id"],
-                motivo=motivo,
-                responsable=responsable if nuevo_estado == "Faltante" else None,
-                usuario_id=usuario_id,
-            )
+            # Movimientos automáticos:
+            #  - 07 -> Desincorporación (entra en BM-2)
+            #  - 06 -> Marcado como faltante / Concepto 60 (entra en BM-3)
+            #  - 01-04 y 05 -> no generan movimiento en BM-2
+            dept = bien["departamento_id"]
+            if nuevo_estado == estados.GENERA_BM2:  # 07
+                self._mov_repo.registrar(
+                    bien_id=bien_id,
+                    tipo="Desincorporación",
+                    dept_origen=dept,
+                    dept_destino=dept,
+                    motivo=motivo,
+                    responsable=None,
+                    usuario_id=usuario_id,
+                    observaciones="Desincorporación por estado 07 (en desuso).",
+                )
+            elif nuevo_estado == estados.GENERA_BM3:  # 06
+                self._mov_repo.registrar(
+                    bien_id=bien_id,
+                    tipo="Marcado como faltante",
+                    dept_origen=dept,
+                    dept_destino=dept,
+                    motivo=motivo,
+                    responsable=None,
+                    usuario_id=usuario_id,
+                    observaciones=(
+                        "Inoperativo irrecuperable (Concepto 60) — entra en BM-3."
+                    ),
+                )
 
-            return (True, f"Estado actualizado a '{nuevo_estado}' correctamente.")
+            return (
+                True,
+                f"Estado actualizado a {estados.etiqueta(nuevo_estado)} "
+                f"correctamente.",
+            )
 
         except Exception as exc:
             return (False, f"Error al actualizar el estado: {exc}")
@@ -268,6 +342,23 @@ class BienService:
     def obtener_categorias(self) -> list[dict[str, Any]]:
         """Retorna categorías activas para combo."""
         return self._bien_repo.listar_categorias()
+
+    def obtener_estados(self) -> list[dict[str, Any]]:
+        """Retorna los estados del catálogo (código y descripción) para combos.
+
+        Intenta leerlos de ``catalogo_estado``; si la consulta falla
+        (p.ej. base de datos sin migrar), usa el catálogo en memoria.
+        """
+        try:
+            filas = self._bien_repo.listar_estados()
+            if filas:
+                return filas
+        except Exception:
+            pass
+        return [
+            {"codigo": c, "descripcion": d}
+            for c, d in estados.ESTADOS.items()
+        ]
 
     def obtener_departamentos(self) -> list[dict[str, Any]]:
         """Retorna departamentos activos para combo."""

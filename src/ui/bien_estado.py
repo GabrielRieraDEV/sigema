@@ -1,9 +1,14 @@
 """
 bien_estado.py — Diálogo de cambio de estado de un bien mueble.
 
-Muestra datos actuales del bien (solo lectura) y permite seleccionar
-un nuevo estado (En desuso / Faltante) con motivo obligatorio.
-Si el estado es 'Faltante', el campo responsable es obligatorio.
+Muestra el estado actual del bien (código + descripción completa, con
+indicador de color) y permite seleccionar un nuevo estado entre las
+transiciones permitidas según las reglas de :mod:`src.core.estados`:
+
+- 01–04 (operativos): cambian libremente entre sí; sin campos extra.
+- 05 / 06 (inoperativos): exigen "Descripción del daño".
+- 07 (desincorporado): exige "Motivo de desincorporación".
+- 06 solo puede pasar a 07; 07 es terminal.
 """
 from __future__ import annotations
 from typing import Any
@@ -12,6 +17,7 @@ from PyQt6.QtWidgets import (
     QLabel, QLineEdit, QMessageBox, QPushButton, QTextEdit,
     QVBoxLayout, QWidget,
 )
+from src.core import estados
 from src.core.bien_service import BienService
 
 
@@ -31,7 +37,8 @@ class BienEstadoDialog(QDialog):
     bien_service : BienService
         Servicio de lógica de negocio.
     bien_data : dict
-        Datos completos del bien a modificar.
+        Datos completos del bien a modificar (incluye ``estado`` como
+        código y, opcionalmente, ``estado_descripcion``).
     usuario_id : int
         ID del usuario autenticado.
     """
@@ -42,11 +49,35 @@ class BienEstadoDialog(QDialog):
         self._service = bien_service
         self._bien = bien_data
         self._usuario_id = usuario_id
+        self._estado_actual = bien_data.get("estado") or ""
+        # Mapa código -> descripción (desde catálogo, con respaldo en memoria).
+        self._desc_por_codigo = self._cargar_descripciones()
         self._init_ui()
 
+    # ------------------------------------------------------------------
+    # Carga de descripciones del catálogo
+    # ------------------------------------------------------------------
+    def _cargar_descripciones(self) -> dict[str, str]:
+        mapa = dict(estados.ESTADOS)
+        try:
+            for est in self._service.obtener_estados():
+                if est.get("codigo"):
+                    mapa[est["codigo"]] = est.get("descripcion", "")
+        except Exception:
+            pass
+        return mapa
+
+    def _desc(self, codigo: str | None) -> str:
+        if not codigo:
+            return ""
+        return self._desc_por_codigo.get(codigo, estados.descripcion(codigo))
+
+    # ------------------------------------------------------------------
+    # Construcción de la interfaz
+    # ------------------------------------------------------------------
     def _init_ui(self) -> None:
         self.setWindowTitle("Cambiar Estado del Bien")
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(520)
         layout = QVBoxLayout(self)
 
         # --- Datos actuales (solo lectura) ---
@@ -65,9 +96,17 @@ class BienEstadoDialog(QDialog):
         lbl_dep.setReadOnly(True)
         form_actual.addRow("Departamento:", lbl_dep)
 
-        lbl_estado = QLineEdit(self._bien.get("estado", ""))
-        lbl_estado.setReadOnly(True)
-        form_actual.addRow("Estado actual:", lbl_estado)
+        # Estado actual con código + descripción completa y color
+        etiqueta_actual = estados.etiqueta(
+            self._estado_actual, self._desc(self._estado_actual)
+        )
+        self._lbl_estado_actual = QLabel(etiqueta_actual or "—")
+        self._lbl_estado_actual.setWordWrap(True)
+        self._lbl_estado_actual.setStyleSheet(
+            f"color:{estados.color_indicador(self._estado_actual)};"
+            " font-weight:bold;"
+        )
+        form_actual.addRow("Estado actual:", self._lbl_estado_actual)
 
         layout.addWidget(grp_actual)
 
@@ -76,24 +115,29 @@ class BienEstadoDialog(QDialog):
         form_nuevo = QFormLayout(grp_nuevo)
 
         self._cmb_estado = QComboBox()
-        self._cmb_estado.addItems(["En desuso", "Faltante"])
-        self._cmb_estado.currentTextChanged.connect(self._on_estado_changed)
+        permitidas = estados.transiciones_permitidas(self._estado_actual)
+        for codigo in permitidas:
+            self._cmb_estado.addItem(
+                estados.etiqueta(codigo, self._desc(codigo)), codigo
+            )
+        self._cmb_estado.currentIndexChanged.connect(self._on_estado_changed)
         form_nuevo.addRow("Nuevo estado:", self._cmb_estado)
 
+        # Campo: Descripción del daño (estados 05 y 06)
+        self._lbl_dano = QLabel("Descripción del daño (*):")
+        self._txt_dano = QTextEdit()
+        self._txt_dano.setMaximumHeight(80)
+        self._txt_dano.setPlaceholderText(
+            "Describa el daño del bien (obligatorio para estados 05 y 06)")
+        form_nuevo.addRow(self._lbl_dano, self._txt_dano)
+
+        # Campo: Motivo de desincorporación (estado 07)
+        self._lbl_motivo = QLabel("Motivo de desincorporación (*):")
         self._txt_motivo = QTextEdit()
         self._txt_motivo.setMaximumHeight(80)
         self._txt_motivo.setPlaceholderText(
-            "Motivo del cambio de estado (obligatorio — RN-04)")
-        form_nuevo.addRow("Motivo (*):", self._txt_motivo)
-
-        self._lbl_responsable = QLabel("Responsable (*):")
-        self._txt_responsable = QLineEdit()
-        self._txt_responsable.setPlaceholderText(
-            "Nombre del responsable (Concepto 60)")
-        form_nuevo.addRow(self._lbl_responsable, self._txt_responsable)
-
-        # Inicialmente ocultar responsable si no es Faltante
-        self._on_estado_changed(self._cmb_estado.currentText())
+            "Indique el motivo de la desincorporación (obligatorio, estado 07)")
+        form_nuevo.addRow(self._lbl_motivo, self._txt_motivo)
 
         layout.addWidget(grp_nuevo)
 
@@ -101,10 +145,10 @@ class BienEstadoDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
-        btn_confirmar = QPushButton("✔ Confirmar")
-        btn_confirmar.setStyleSheet(_btn_style("#1B7F3A", "#238C47"))
-        btn_confirmar.clicked.connect(self._on_confirmar)
-        btn_layout.addWidget(btn_confirmar)
+        self._btn_confirmar = QPushButton("✔ Confirmar")
+        self._btn_confirmar.setStyleSheet(_btn_style("#1B7F3A", "#238C47"))
+        self._btn_confirmar.clicked.connect(self._on_confirmar)
+        btn_layout.addWidget(self._btn_confirmar)
 
         btn_cancelar = QPushButton("✖ Cancelar")
         btn_cancelar.setStyleSheet(_btn_style("#CC0000", "#FF3333"))
@@ -113,38 +157,70 @@ class BienEstadoDialog(QDialog):
 
         layout.addLayout(btn_layout)
 
-    def _on_estado_changed(self, estado: str) -> None:
-        """Muestra/oculta el campo responsable según el estado."""
-        es_faltante = estado == "Faltante"
-        self._lbl_responsable.setVisible(es_faltante)
-        self._txt_responsable.setVisible(es_faltante)
+        # Estado terminal / sin transiciones disponibles
+        if not permitidas:
+            self._cmb_estado.setEnabled(False)
+            self._btn_confirmar.setEnabled(False)
+            aviso = QLabel(
+                "Este bien está en un estado que no admite cambios "
+                "(estado terminal o bloqueado)."
+            )
+            aviso.setWordWrap(True)
+            aviso.setStyleSheet("color:#CC0000; font-style:italic;")
+            layout.addWidget(aviso)
+            self._lbl_dano.setVisible(False)
+            self._txt_dano.setVisible(False)
+            self._lbl_motivo.setVisible(False)
+            self._txt_motivo.setVisible(False)
+        else:
+            self._on_estado_changed()
+
+    # ------------------------------------------------------------------
+    # Slots
+    # ------------------------------------------------------------------
+    def _on_estado_changed(self, *_args) -> None:
+        """Muestra/oculta los campos condicionales según el estado destino."""
+        nuevo = self._cmb_estado.currentData()
+        requiere_dano = nuevo in estados.REQUIERE_DESCRIPCION_DANO
+        requiere_motivo = nuevo == estados.REQUIERE_MOTIVO_DESINCORPORACION
+
+        self._lbl_dano.setVisible(requiere_dano)
+        self._txt_dano.setVisible(requiere_dano)
+        self._lbl_motivo.setVisible(requiere_motivo)
+        self._txt_motivo.setVisible(requiere_motivo)
 
     def _on_confirmar(self) -> None:
         """Valida y llama a bien_service.actualizar_estado()."""
-        nuevo_estado = self._cmb_estado.currentText()
-        motivo = self._txt_motivo.toPlainText().strip()
-        responsable = self._txt_responsable.text().strip() or None
-
-        # Validación UI
-        if not motivo:
+        nuevo_estado = self._cmb_estado.currentData()
+        if not nuevo_estado:
             QMessageBox.warning(
-                self, "Validación",
-                "Debe indicar el motivo del cambio de estado (RN-04).")
-            self._txt_motivo.setFocus()
+                self, "Validación", "Seleccione un nuevo estado.")
             return
 
-        if nuevo_estado == "Faltante" and not responsable:
-            QMessageBox.warning(
-                self, "Validación",
-                "Debe indicar el responsable del bien faltante (Concepto 60).")
-            self._txt_responsable.setFocus()
-            return
+        # El "motivo" depende del estado destino
+        if nuevo_estado in estados.REQUIERE_DESCRIPCION_DANO:
+            detalle = self._txt_dano.toPlainText().strip()
+            if not detalle:
+                QMessageBox.warning(
+                    self, "Validación",
+                    "Debe indicar la descripción del daño (estados 05 y 06).")
+                self._txt_dano.setFocus()
+                return
+        elif nuevo_estado == estados.REQUIERE_MOTIVO_DESINCORPORACION:
+            detalle = self._txt_motivo.toPlainText().strip()
+            if not detalle:
+                QMessageBox.warning(
+                    self, "Validación",
+                    "Debe indicar el motivo de desincorporación (estado 07).")
+                self._txt_motivo.setFocus()
+                return
+        else:
+            detalle = None
 
         ok, mensaje = self._service.actualizar_estado(
             bien_id=self._bien["id"],
             nuevo_estado=nuevo_estado,
-            motivo=motivo,
-            responsable=responsable,
+            motivo=detalle,
             usuario_id=self._usuario_id,
         )
 

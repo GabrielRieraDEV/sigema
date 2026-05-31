@@ -13,6 +13,7 @@ from typing import Any
 from reportlab.platypus import Paragraph, Spacer
 from reportlab.lib.units import mm
 
+from src.core import estados
 from src.reports.bm_base import BMBase, USABLE_WIDTH
 
 
@@ -102,7 +103,10 @@ class BM1Inventario(BMBase):
                     self.style_body_center,
                 ),
                 Paragraph(
-                    str(bien.get("nombre_descripcion", "")),
+                    f"{bien.get('nombre_descripcion', '')}"
+                    f"<br/><font size='6'>Estado: "
+                    f"{estados.etiqueta(bien.get('estado'), bien.get('estado_descripcion'))}"
+                    f"</font>",
                     self.style_body,
                 ),
                 Paragraph(
