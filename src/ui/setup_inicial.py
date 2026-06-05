@@ -34,10 +34,18 @@ from PyQt6.QtWidgets import (
 
 
 def _config_path() -> str:
-    """Retorna la ruta del config.ini en la raíz del proyecto."""
+    """Retorna la ruta donde se guarda config.ini.
+
+    En modo congelado (.exe) es la carpeta del ejecutable; en desarrollo,
+    la raíz del proyecto.
+    """
+    try:
+        from src.paths import config_path
+        return str(config_path())
+    except Exception:
+        pass
     current = Path(__file__).resolve().parent
     for _ in range(6):
-        candidate = current / "config.ini"
         # Buscamos la raíz del proyecto (donde está requirements.txt)
         if (current / "requirements.txt").is_file():
             return str(current / "config.ini")
@@ -305,6 +313,10 @@ class SetupInicialDialog(QDialog):
             "password": datos["password"],
             "min_connections": "2",
             "max_connections": "10",
+        }
+        cfg["app"] = {
+            "session_timeout_minutes": "30",
+            "backup_folder": datos["backup_dir"],
         }
         cfg["backup"] = {
             "directorio": datos["backup_dir"],

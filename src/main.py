@@ -61,14 +61,24 @@ _TIMER_INTERVAL_MS = 60_000
 def _config_existe() -> bool:
     """Retorna True si config.ini existe y tiene la sección [database]."""
     import configparser
+
+    candidatos = []
+    # En modo congelado (.exe), config.ini vive junto al ejecutable.
+    try:
+        from src.paths import config_path
+        candidatos.append(config_path())
+    except Exception:
+        pass
     current = Path(__file__).resolve().parent
     for _ in range(6):
-        candidate = current / "config.ini"
+        candidatos.append(current / "config.ini")
+        current = current.parent
+
+    for candidate in candidatos:
         if candidate.is_file():
             cfg = configparser.ConfigParser()
             cfg.read(str(candidate), encoding="utf-8")
             return "database" in cfg
-        current = current.parent
     return False
 
 

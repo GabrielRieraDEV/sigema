@@ -1,4 +1,29 @@
-psycopg2-binary>=2.9
-PyQt6>=6.5
-reportlab>=4.0
-bcrypt>=4.0
+# =============================================================================
+# SIGEMA — Dependencias de PRODUCCIÓN (versiones exactas)
+# Python 3.11 o 3.12
+#
+# Instalación:
+#     python -m venv .venv
+#     .venv\Scripts\activate
+#     pip install -r requirements.txt
+#
+# Para empaquetar el .exe y correr los tests, ver requirements-dev.txt
+# =============================================================================
+
+# Interfaz gráfica de escritorio (PyQt6)
+PyQt6==6.7.1
+PyQt6-Qt6==6.7.3
+PyQt6-sip==13.8.0
+
+# Acceso a PostgreSQL
+psycopg2-binary==2.9.10
+
+# Generación de formularios BM en PDF
+reportlab==4.2.5
+
+# Hash de contraseñas
+bcrypt==4.2.1
+
+# Migración de datos del sistema anterior (FoxPro .dbf y Excel .xlsx)
+dbfread==2.0.7
+openpyxl==3.1.5

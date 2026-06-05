@@ -163,7 +163,11 @@ class BMBase:
         from reportlab.platypus import Image
 
         izq_elements = []
-        logo_path = "assets/logo.png"
+        try:
+            from src.paths import resource_path
+            logo_path = str(resource_path("assets/logo.png"))
+        except Exception:
+            logo_path = "assets/logo.png"
         if os.path.exists(logo_path):
             try:
                 img = Image(logo_path, width=4.5*cm, height=2.5*cm, kind='proportional')

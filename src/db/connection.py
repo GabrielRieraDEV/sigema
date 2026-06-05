@@ -53,6 +53,15 @@ class DBConnection:
     def _find_config() -> str:
         """Busca config.ini subiendo desde el directorio del paquete
         hasta la raíz del proyecto."""
+        # En modo congelado (.exe), config.ini vive junto al ejecutable.
+        try:
+            from src.paths import config_path
+            cfg = config_path()
+            if cfg.is_file():
+                return str(cfg)
+        except Exception:
+            pass
+
         # Empezar desde el directorio de este archivo (src/db/)
         current = os.path.dirname(os.path.abspath(__file__))
         for _ in range(5):  # máximo 5 niveles

@@ -1,0 +1,109 @@
+================================================================================
+  SIGEMA - INSTRUCCIONES PARA LAS COMPUTADORAS DEL PERSONAL (CLIENTE)
+  Instituto Autonomo Minas Bolivar
+================================================================================
+
+  Siga estos pasos en CADA computadora donde se vaya a usar SIGEMA.
+  Es muy sencillo. Si tiene dudas, pida ayuda al encargado de informatica.
+
+  ANTES DE EMPEZAR necesita un dato que le da el encargado de informatica:
+
+        * La IP del servidor   (ejemplo: 192.168.1.100)
+
+  (Si no la tiene, pidasela. Sin ese dato el programa no se podra conectar.)
+
+
+  QUE CONTIENE ESTA CARPETA
+--------------------------------------------------------------------------------
+  - sigema.exe ................... El programa SIGEMA.
+  - INSTRUCCIONES_CLIENTE.txt .... Este archivo.
+
+
+  PASO 1 - COPIAR EL PROGRAMA
+--------------------------------------------------------------------------------
+  1) Cree una carpeta en el disco C, llamada por ejemplo:   C:\SIGEMA
+  2) Copie el archivo  sigema.exe  dentro de esa carpeta.
+  3) (Opcional) Haga clic derecho sobre sigema.exe y elija
+     "Enviar a > Escritorio (crear acceso directo)" para abrirlo facil.
+
+
+  PASO 2 - ABRIR EL PROGRAMA POR PRIMERA VEZ
+--------------------------------------------------------------------------------
+  1) Haga doble clic en  sigema.exe
+
+     >> Si Windows muestra una advertencia azul ("Windows protegio su PC"),
+        haga clic en "Mas informacion" y luego en "Ejecutar de todas formas".
+        Es normal la primera vez.
+
+  2) Como es la primera vez, aparecera la ventana:
+            "SIGEMA - Configuracion inicial"
+
+     Complete los datos asi:
+
+            Servidor (IP/Host) : la IP del servidor (ej. 192.168.1.100)
+            Puerto             : 5432
+            Base de datos      : sigema
+            Usuario BD         : sigema_user
+            Contrasena BD      : (la que indico informatica; por defecto
+                                  "sigema_pass")
+
+     Directorio de respaldos: puede dejar el que aparece por defecto.
+
+  3) Haga clic en  "Probar conexion".
+
+            * Si dice "Conexion exitosa" (en verde): todo esta bien.
+            * Si dice un error (en rojo): revise la IP, la contrasena y que
+              el servidor este encendido. Vuelva a intentar.
+
+  4) Cuando la conexion sea exitosa, haga clic en "Guardar y continuar".
+
+     Esta configuracion se guarda en esta computadora. No tendra que volver
+     a escribirla la proxima vez.
+
+
+  PASO 3 - INICIAR SESION
+--------------------------------------------------------------------------------
+  Aparecera la pantalla de ingreso. La primera vez use:
+
+            Usuario:    admin
+            Contrasena: admin
+
+  (El administrador de SIGEMA le creara despues su propio usuario y le dira
+   su contrasena. Cada persona debe entrar con su propio usuario.)
+
+
+  USO DIARIO
+--------------------------------------------------------------------------------
+  De aqui en adelante solo tiene que:
+
+        1) Abrir sigema.exe (o el acceso directo del Escritorio).
+        2) Escribir su usuario y contrasena.
+
+  El programa se conecta solo al servidor. Recuerde que el SERVIDOR debe
+  estar encendido para poder trabajar.
+
+
+  RECOMENDACIONES
+--------------------------------------------------------------------------------
+  - Por seguridad, la sesion se cierra sola despues de 30 minutos sin uso.
+    Solo vuelva a iniciar sesion para continuar.
+  - No comparta su usuario y contrasena con otras personas.
+  - Si cambia la computadora de servidor o su IP, avise a informatica para
+    actualizar este dato.
+
+
+  PROBLEMAS FRECUENTES
+--------------------------------------------------------------------------------
+  - "No se pudo conectar a la base de datos":
+        * Verifique que el servidor este encendido.
+        * Confirme con informatica que la IP no haya cambiado.
+        * Revise que esta computadora este conectada a la red de la oficina.
+
+  - "Quiero cambiar los datos de conexion":
+        Cierre el programa, busque el archivo  config.ini  (esta en la misma
+        carpeta que sigema.exe) y borrelo. Al abrir de nuevo el programa,
+        volvera a aparecer la pantalla de configuracion inicial.
+
+================================================================================
+  Fin de las instrucciones del cliente.
+================================================================================

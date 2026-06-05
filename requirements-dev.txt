@@ -1,0 +1,16 @@
+# =============================================================================
+# SIGEMA — Dependencias de DESARROLLO / BUILD (versiones exactas)
+#
+# Incluye todo lo de producción más las herramientas para correr los tests
+# y para empaquetar el ejecutable de Windows.
+#
+#     pip install -r requirements-dev.txt
+# =============================================================================
+
+-r requirements.txt
+
+# Pruebas unitarias
+pytest==8.3.4
+
+# Empaquetado del ejecutable de Windows
+pyinstaller==6.11.1

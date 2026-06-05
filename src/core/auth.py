@@ -8,6 +8,8 @@ por perfil (RN-10, RN-11).
 
 from __future__ import annotations
 
+import configparser
+import os
 import threading
 from datetime import datetime, timedelta
 from typing import Any
@@ -16,8 +18,33 @@ import bcrypt
 
 from src.db.connection import DBConnection
 
-# Tiempo máximo de inactividad en minutos (NF-05)
-TIMEOUT_MINUTOS: int = 30
+
+def _cargar_timeout_minutos(defecto: int = 30) -> int:
+    """Lee [app] session_timeout_minutes de config.ini (NF-05).
+
+    Si el archivo o la clave no existen, o el valor no es válido, devuelve
+    el valor por defecto (30 minutos).
+    """
+    current = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(6):
+        candidate = os.path.join(current, "config.ini")
+        if os.path.isfile(candidate):
+            try:
+                cfg = configparser.ConfigParser()
+                cfg.read(candidate, encoding="utf-8")
+                valor = cfg.get("app", "session_timeout_minutes", fallback=None)
+                if valor is not None and int(valor) > 0:
+                    return int(valor)
+            except (ValueError, configparser.Error):
+                pass
+            break
+        current = os.path.dirname(current)
+    return defecto
+
+
+# Tiempo máximo de inactividad en minutos (NF-05). Configurable vía
+# config.ini → [app] session_timeout_minutes.
+TIMEOUT_MINUTOS: int = _cargar_timeout_minutos()
 
 # ---------------------------------------------------------------------------
 # Tabla de permisos por perfil

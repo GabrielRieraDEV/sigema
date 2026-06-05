@@ -52,9 +52,13 @@ def _leer_config() -> tuple[dict, str]:
         "password": db.get("password", ""),
     }
 
-    # Directorio de backups: sección [backup] → directorio
-    # Default: carpeta 'backups' al lado del ejecutable / raíz del proyecto
-    if "backup" in cfg and cfg["backup"].get("directorio"):
+    # Directorio de backups. Se acepta, en orden de prioridad:
+    #   1. [app] backup_folder   (config.example.ini de producción)
+    #   2. [backup] directorio   (alias histórico)
+    #   3. carpeta 'backups' junto al ejecutable / raíz del proyecto
+    if "app" in cfg and cfg["app"].get("backup_folder"):
+        directorio = cfg["app"]["backup_folder"]
+    elif "backup" in cfg and cfg["backup"].get("directorio"):
         directorio = cfg["backup"]["directorio"]
     else:
         directorio = str(Path(config_path).parent / "backups")

@@ -1,0 +1,111 @@
+================================================================================
+  SIGEMA - INSTRUCCIONES PARA INSTALAR EL SERVIDOR
+  Instituto Autonomo Minas Bolivar
+================================================================================
+
+  Estas instrucciones son para la persona encargada de los equipos
+  (informatica). Solo se hacen UNA VEZ, en la computadora que va a guardar
+  toda la informacion de SIGEMA. A esa computadora la llamamos "el servidor".
+
+
+  QUE COMPUTADORA USAR COMO SERVIDOR
+--------------------------------------------------------------------------------
+  - Una computadora que este SIEMPRE encendida durante el horario de trabajo.
+  - Conectada a la red de la oficina (de preferencia por cable de red).
+  - Que no se apague ni se reinicie sola.
+
+  Las demas computadoras (las que usara el personal) se conectaran a esta a
+  traves de la red local. No necesitan internet.
+
+
+  QUE CONTIENE ESTA CARPETA
+--------------------------------------------------------------------------------
+  - install_server.ps1 .... El instalador automatico.
+  - schema.sql ............ La estructura de la base de datos (no la abra).
+  - INSTRUCCIONES_SERVIDOR.txt ... Este archivo.
+
+
+  PASOS PARA INSTALAR
+--------------------------------------------------------------------------------
+
+  1) Copie esta carpeta completa ("servidor") al Escritorio del servidor.
+
+  2) Asegurese de que la computadora tenga internet SOLO durante la
+     instalacion (para descargar PostgreSQL). Despues ya no hace falta.
+
+  3) Haga clic derecho sobre el archivo  install_server.ps1
+     y elija:   "Ejecutar con PowerShell"
+
+     Si Windows pide permiso de Administrador, acepte (diga "Si").
+
+     >> Si aparece un mensaje que dice que los scripts estan bloqueados,
+        abra el menu Inicio, escriba "PowerShell", haga clic derecho en
+        "Windows PowerShell" y elija "Ejecutar como administrador". Luego
+        escriba esta linea y presione Enter:
+
+            powershell -ExecutionPolicy Bypass -File "$HOME\Desktop\servidor\install_server.ps1"
+
+  4) Espere. La instalacion puede tardar varios minutos. Vera mensajes de
+     avance en colores. NO cierre la ventana hasta que diga:
+
+            INSTALACION COMPLETADA
+
+  5) Al terminar, la pantalla mostrara los datos del servidor. Por ejemplo:
+
+            IP del servidor : 192.168.1.100
+            Puerto          : 5432
+            Base de datos   : sigema
+            Usuario BD      : sigema_user
+            Contrasena BD   : sigema_pass
+
+     >> ANOTE LA "IP DEL SERVIDOR". Es el dato mas importante: lo va a
+        necesitar para configurar cada computadora del personal.
+
+
+  CONTRASENAS (IMPORTANTE)
+--------------------------------------------------------------------------------
+  Por seguridad se recomienda poner una contrasena propia en lugar de la de
+  ejemplo. Para eso, en el paso 3, en vez de hacer doble clic, ejecute desde
+  PowerShell (como administrador):
+
+      powershell -ExecutionPolicy Bypass -File install_server.ps1 -SigemaUserPassword "SuClaveSegura"
+
+  La clave que ponga aqui es la misma que se escribira en cada computadora
+  cliente (ver INSTRUCCIONES_CLIENTE.txt). Antela y guardela en lugar seguro.
+
+
+  USUARIO INICIAL DE LA APLICACION
+--------------------------------------------------------------------------------
+  Para entrar a SIGEMA la primera vez:
+
+            Usuario:    admin
+            Contrasena: admin
+
+  Pidale al administrador de SIGEMA que cambie esta contrasena despues del
+  primer ingreso, desde el modulo de Usuarios.
+
+
+  COMO SABER LA IP DEL SERVIDOR MAS ADELANTE
+--------------------------------------------------------------------------------
+  Si necesita volver a ver la IP, abra PowerShell en el servidor y escriba:
+
+            ipconfig
+
+  Busque "Direccion IPv4" (algo como 192.168.1.100).
+
+
+  PROBLEMAS FRECUENTES
+--------------------------------------------------------------------------------
+  - "Los clientes no se conectan":
+        * Verifique que el servidor este encendido.
+        * Confirme que escribio bien la IP en el cliente.
+        * Verifique que ambas computadoras esten en la misma red.
+
+  - "Se cambio la IP del servidor":
+        Algunas redes cambian la IP sola. Pidale al encargado de red que
+        deje una IP FIJA para el servidor. Asi no tendra que reconfigurar
+        los clientes.
+
+================================================================================
+  Fin de las instrucciones del servidor.
+================================================================================
