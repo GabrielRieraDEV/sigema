@@ -11,18 +11,19 @@
 # =============================================================================
 
 # Interfaz gráfica de escritorio (PyQt6)
-PyQt6==6.7.1
-PyQt6-Qt6==6.7.3
-PyQt6-sip==13.8.0
+PyQt6==6.11.0
+PyQt6-Qt6==6.11.0
+PyQt6_sip==13.11.1
 
 # Acceso a PostgreSQL
-psycopg2-binary==2.9.10
+psycopg2-binary==2.9.11
 
-# Generación de formularios BM en PDF
-reportlab==4.2.5
+# Generación de formularios BM en PDF (Pillow lo usa para incrustar el logo)
+reportlab==4.4.10
+pillow==12.2.0
 
 # Hash de contraseñas
-bcrypt==4.2.1
+bcrypt==5.0.0
 
 # Migración de datos del sistema anterior (FoxPro .dbf y Excel .xlsx)
 dbfread==2.0.7
