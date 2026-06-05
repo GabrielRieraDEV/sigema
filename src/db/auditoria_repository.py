@@ -168,8 +168,9 @@ class AuditoriaRepository:
             )
 
         if accion and accion.strip():
-            conditions.append("a.accion ILIKE %s")
-            params.append(f"%{accion.strip()}%")
+            # Coincidencia exacta: el combo entrega el código de acción.
+            conditions.append("a.accion = %s")
+            params.append(accion.strip())
 
         if tabla and tabla.strip():
             conditions.append("a.tabla_afectada ILIKE %s")

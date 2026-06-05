@@ -37,6 +37,15 @@ class AuditoriaPanelWidget(QWidget):
 
     _COLS = ["ID", "Fecha / Hora", "Usuario", "Acción", "Tabla", "Registro ID", "IP origen"]
 
+    # Acciones conocidas del sistema (código en BD -> etiqueta legible).
+    # Siempre se ofrecen en el combo, aunque todavía no estén en el log.
+    _ACCIONES_CONOCIDAS = [
+        ("CREAR", "Crear"),
+        ("ACTUALIZAR", "Actualizar"),
+        ("ACTUALIZAR_ESTADO", "Actualizar estado"),
+        ("CAMBIAR_ESTADO", "Cambiar estado (activar/desactivar)"),
+    ]
+
     def __init__(self, auditoria_repo: AuditoriaRepository, parent=None):
         super().__init__(parent)
         self._repo = auditoria_repo
@@ -152,10 +161,17 @@ class AuditoriaPanelWidget(QWidget):
             pass
 
     def _cargar_acciones_combo(self) -> None:
+        vistos: set[str] = set()
+        # 1. Acciones conocidas del sistema (siempre seleccionables).
+        for codigo, etiqueta in self._ACCIONES_CONOCIDAS:
+            self._combo_accion.addItem(etiqueta, codigo)
+            vistos.add(codigo)
+        # 2. Cualquier otra acción presente en el log que no esté en la lista.
         try:
-            acciones = self._repo.listar_acciones_distintas()
-            for a in acciones:
-                self._combo_accion.addItem(a, a)
+            for a in self._repo.listar_acciones_distintas():
+                if a and a not in vistos:
+                    self._combo_accion.addItem(a, a)
+                    vistos.add(a)
         except Exception:
             pass
 
