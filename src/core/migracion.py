@@ -52,7 +52,7 @@ COLUMN_ALIASES: dict[str, list[str]] = {
     "codigo_activo": [
         "codigo_activo", "codigo", "cod_activo", "codigo_bien", "codbien",
         "codigo_del_bien", "activo", "bien", "id_bien", "cod_bien",
-        "cod", "nro_bien", "num_bien",
+        "cod", "nro_bien", "num_bien", "numero", "nro", "no_bien",
     ],
     "codigo_nivel": ["codigo_nivel", "nivel", "cod_nivel"],
     "descripcion": [
@@ -79,6 +79,7 @@ COLUMN_ALIASES: dict[str, list[str]] = {
     "fecha_compra": [
         "fecha_compra", "fecha_comp", "fec_compra", "fecha", "fecha_adquisicion",
         "fecha_adq", "fec_adq", "fecha_ingreso", "fec_ingreso", "fecha_registro",
+        "ano", "anio", "year", "ejercicio",
     ],
     "precio_sin_iva": [
         "precio_sin_iva", "precio", "precio_uni", "precio_unitario", "valor",
@@ -88,9 +89,9 @@ COLUMN_ALIASES: dict[str, list[str]] = {
     "moneda": ["moneda"],
     "vida_util_meses": ["vida_util_meses", "vida_util", "vidautil", "vida"],
     "departamento": [
-        "departamento", "departamen", "depto", "dep", "cod_depto", "cod_dep",
-        "dependencia", "dependenci", "unidad", "unidad_adm", "ubicacion",
-        "gerencia", "oficina", "ofic",
+        "departamento", "departamen", "depto", "dep", "depend", "cod_depto",
+        "cod_dep", "dependencia", "dependenci", "unidad", "unidad_adm",
+        "ubicacion", "gerencia", "oficina", "ofic",
     ],
     "cuenta_contable": [
         "cuenta_contable", "cuenta_con", "cuentacont", "cta_contab", "ctacontabl",
@@ -101,15 +102,18 @@ COLUMN_ALIASES: dict[str, list[str]] = {
         "observaciones", "observacio", "observacion", "observa", "obs",
         "notas", "nota",
     ],
+    # Campos del sistema anterior (FoxPro) que se transforman luego.
+    "estado_texto": ["estado", "estatus", "situacion", "condicion"],
+    "subgrupo": ["subgrupo", "sub_grupo", "subgrup"],
 }
 
 # Campos obligatorios para poder migrar un registro.
+# (la categoría no es obligatoria: en migración se asigna una por defecto.)
 _CAMPOS_OBLIGATORIOS = [
     "codigo_activo",
     "descripcion",
     "departamento",
     "cuenta_contable",
-    "categoria",
 ]
 
 
@@ -147,6 +151,18 @@ def _decode_txt(b: bytes) -> str:
     return b.decode("latin-1", "ignore")
 
 
+# Mapa inverso descripción->código de estado (para traducir el ESTADO texto
+# del sistema anterior al código del catálogo de SIGEMA).
+_ESTADO_POR_TEXTO = {_norm(desc): cod for cod, desc in estados.ESTADOS.items()}
+
+
+def _estado_desde_texto(texto: Any) -> str:
+    """Traduce el texto de estado del sistema anterior a su código (01..07)."""
+    if not texto:
+        return estados.ESTADO_DEFECTO
+    return _ESTADO_POR_TEXTO.get(_norm(texto), estados.ESTADO_DEFECTO)
+
+
 def _parse_decimal(valor: Any) -> float:
     """Convierte texto monetario a float, tolerando formatos es/en."""
     if valor is None or valor == "":
@@ -180,6 +196,9 @@ def _parse_fecha(valor: Any) -> str | None:
     if isinstance(valor, date):
         return valor.isoformat()
     s = str(valor).strip()[:19]
+    # Año solo (p.ej. '2013' del campo AÑO de FoxPro) -> 1 de enero.
+    if len(s) == 4 and s.isdigit() and "1900" <= s <= "2099":
+        return f"{s}-01-01"
     formatos = (
         "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d",
         "%m/%d/%Y", "%d/%m/%y", "%Y-%m-%d %H:%M:%S",
@@ -200,17 +219,38 @@ class Migrador:
     :meth:`generar_reporte_errores`.
     """
 
-    def __init__(self, db: DBConnection, usuario_id: int):
+    def __init__(
+        self,
+        db: DBConnection,
+        usuario_id: int,
+        auto_crear_catalogos: bool = True,
+        sufijo_duplicados: bool = True,
+        cuenta_defecto: str | None = None,
+    ):
         self._db = db
         self._usuario_id = usuario_id
         self._bien_repo = BienRepository(db)
         self._catalogo_repo = CatalogoRepository(db)
+        # Cuenta contable a asignar a todos los bienes migrados. El SUBGRUPO
+        # del sistema anterior es inconsistente, así que se usa una cuenta
+        # por defecto y se reclasifica luego desde SIGEMA (el SUBGRUPO
+        # original queda anotado en observaciones para referencia).
+        self._cuenta_defecto = cuenta_defecto
+        # Comportamiento de migración (confirmado con el usuario):
+        #  - auto_crear_catalogos: crea departamentos faltantes y la
+        #    categoría 'Migrado' en lugar de marcar error.
+        #  - sufijo_duplicados: a los códigos repetidos les agrega -1, -2…
+        self._auto_crear = auto_crear_catalogos
+        self._sufijo_duplicados = sufijo_duplicados
         # Lookups de catálogos (se cargan perezosamente).
         self._cuentas: set[str] | None = None
         self._cuentas_por_desc: dict[str, str] | None = None
         self._departamentos: dict[str, int] | None = None
         self._categorias: dict[str, int] | None = None
         self._codigos_existentes: set[str] | None = None
+        self._dept_codigos: set[str] = set()
+        self._dept_seq = 0
+        self._categoria_migrado_id: int | None = None
         # Estado para detectar duplicados dentro del propio archivo.
         self._codigos_vistos: set[str] = set()
 
@@ -229,9 +269,11 @@ class Migrador:
 
         deps = self._catalogo_repo.listar_departamentos()
         self._departamentos = {}
+        self._dept_codigos = set()
         for d in deps:
             self._departamentos[_norm(d["codigo"])] = d["id"]
             self._departamentos[_norm(d["nombre"])] = d["id"]
+            self._dept_codigos.add(_norm(d["codigo"]))
 
         cats = self._catalogo_repo.listar_categorias()
         self._categorias = {_norm(c["nombre"]): c["id"] for c in cats}
@@ -260,6 +302,53 @@ class Migrador:
     def _resolver_categoria(self, valor: Any) -> int | None:
         self._cargar_catalogos()
         return (self._categorias or {}).get(_norm(valor))
+
+    # ------------------------------------------------------------------
+    # Auto-creación de catálogos (departamentos y categoría 'Migrado')
+    # ------------------------------------------------------------------
+    def _siguiente_codigo_dept(self) -> str:
+        """Genera un código de departamento único (MIG-001, MIG-002…)."""
+        while True:
+            self._dept_seq += 1
+            codigo = f"MIG-{self._dept_seq:03d}"
+            if _norm(codigo) not in self._dept_codigos:
+                self._dept_codigos.add(_norm(codigo))
+                return codigo
+
+    def _resolver_o_crear_departamento(self, nombre: Any) -> int | None:
+        """Resuelve un departamento por nombre/código; lo crea si no existe."""
+        if nombre is None or str(nombre).strip() == "":
+            return None
+        self._cargar_catalogos()
+        clave = _norm(nombre)
+        existente = (self._departamentos or {}).get(clave)
+        if existente is not None:
+            return existente
+        codigo = self._siguiente_codigo_dept()
+        nuevo_id = self._catalogo_repo.crear_departamento({
+            "codigo": codigo,
+            "nombre": str(nombre).strip(),
+            "descripcion": "Creado por migración del sistema anterior.",
+        })
+        self._departamentos[clave] = nuevo_id
+        return nuevo_id
+
+    def _asegurar_categoria_migrado(self) -> int:
+        """Devuelve el id de la categoría 'Migrado', creándola si hace falta."""
+        if self._categoria_migrado_id is not None:
+            return self._categoria_migrado_id
+        self._cargar_catalogos()
+        existente = (self._categorias or {}).get(_norm("Migrado"))
+        if existente is not None:
+            self._categoria_migrado_id = existente
+            return existente
+        nuevo_id = self._catalogo_repo.crear_categoria({
+            "nombre": "Migrado",
+            "descripcion": "Bienes migrados del sistema anterior (FoxPro).",
+        })
+        self._categorias[_norm("Migrado")] = nuevo_id
+        self._categoria_migrado_id = nuevo_id
+        return nuevo_id
 
     # ------------------------------------------------------------------
     # 1. Lectura del archivo
@@ -295,9 +384,47 @@ class Migrador:
         registros = []
         for i, fila in enumerate(filas, start=inicio):
             registro = self._mapear(fila)
+            self._postprocesar(registro)
             registro["_fila"] = i
             registros.append(registro)
+        # Resolver códigos duplicados (sufijo -1, -2…) antes de validar.
+        self._resolver_duplicados(registros)
         return registros
+
+    def _postprocesar(self, registro: dict[str, Any]) -> None:
+        """Transforma los campos heredados (estado texto, cuenta desde subgrupo)."""
+        # Estado: el sistema anterior guarda el texto; traducir al código.
+        if registro.get("estado_texto") and not registro.get("estado"):
+            registro["estado"] = _estado_desde_texto(registro["estado_texto"])
+        # Cuenta contable:
+        #  - Si hay cuenta_defecto, se asigna a todos (caso FoxPro maestro).
+        #  - Si no, se deriva 2-1-214-NN desde SUBGRUPO (otros formatos).
+        if self._cuenta_defecto:
+            registro["cuenta_contable"] = self._cuenta_defecto
+        elif not registro.get("cuenta_contable") and registro.get("subgrupo"):
+            sg = str(registro["subgrupo"]).strip()
+            if sg:
+                registro["cuenta_contable"] = f"2-1-214-{sg}"
+
+    def _resolver_duplicados(self, registros: list[dict[str, Any]]) -> None:
+        """Hace únicos los códigos repetidos agregando sufijo -1, -2…"""
+        if not self._sufijo_duplicados:
+            return
+        contador: dict[str, int] = {}
+        for r in registros:
+            cod = str(r.get("codigo_activo", "")).strip()
+            if not cod:
+                continue
+            n = contador.get(cod, 0)
+            contador[cod] = n + 1
+            if n > 0:
+                nuevo = f"{cod}-{n}"
+                r["codigo_activo"] = nuevo
+                r["_codigo_original"] = cod
+                r["_nota"] = (
+                    f"Código original '{cod}' duplicado en el sistema "
+                    f"anterior; renombrado a '{nuevo}' en la migración."
+                )
 
     @staticmethod
     def _leer_csv(ruta: str) -> list[dict[str, Any]]:
@@ -543,14 +670,14 @@ class Migrador:
                     f"Cuenta contable inexistente: "
                     f"'{registro['cuenta_contable']}'")
 
-        # Departamento no existe en catálogo
-        if registro.get("departamento"):
+        # Departamento: solo se exige que exista si NO se autocrean catálogos.
+        if not self._auto_crear and registro.get("departamento"):
             if self._resolver_departamento(registro["departamento"]) is None:
                 errores.append(
                     f"Departamento inexistente: '{registro['departamento']}'")
 
-        # Categoría no existe en catálogo (requerida por el esquema actual)
-        if registro.get("categoria"):
+        # Categoría: solo se valida si NO se autocrea y viene en el archivo.
+        if not self._auto_crear and registro.get("categoria"):
             if self._resolver_categoria(registro["categoria"]) is None:
                 errores.append(
                     f"Categoría inexistente: '{registro['categoria']}'")
@@ -607,13 +734,16 @@ class Migrador:
         """
         self._cargar_catalogos()
         uid = usuario_id if usuario_id is not None else self._usuario_id
+        cat_defecto = (
+            self._asegurar_categoria_migrado() if self._auto_crear else None
+        )
         total = len(registros_validos)
         insertados = 0
         errores: list[dict[str, Any]] = []
 
         for idx, registro in enumerate(registros_validos, start=1):
             try:
-                bien = self._construir_bien(registro, uid)
+                bien = self._construir_bien(registro, uid, cat_defecto)
                 self._bien_repo.crear(bien)
                 insertados += 1
             except Exception as exc:
@@ -633,18 +763,39 @@ class Migrador:
         }
 
     def _construir_bien(
-        self, registro: dict[str, Any], usuario_id: int
+        self,
+        registro: dict[str, Any],
+        usuario_id: int,
+        categoria_defecto: int | None = None,
     ) -> dict[str, Any]:
         """Construye el dict de ``bien`` listo para insertar."""
         cuenta = self._resolver_cuenta(registro.get("cuenta_contable"))
-        dept_id = self._resolver_departamento(registro.get("departamento"))
-        cat_id = self._resolver_categoria(registro.get("categoria"))
+        if self._auto_crear:
+            dept_id = self._resolver_o_crear_departamento(
+                registro.get("departamento"))
+        else:
+            dept_id = self._resolver_departamento(registro.get("departamento"))
+        cat_id = self._resolver_categoria(registro.get("categoria")) or categoria_defecto
 
         codigo_activo = str(registro.get("codigo_activo", "")).strip()
         codigo_nivel = (
             str(registro.get("codigo_nivel") or "").strip() or cuenta or "N/A"
         )
         fecha = _parse_fecha(registro.get("fecha_compra")) or date.today().isoformat()
+
+        # Estado: ya viene como código (mapeado desde el texto del FoxPro).
+        estado = registro.get("estado") or estados.ESTADO_DEFECTO
+
+        # Observaciones: combinar obs original + clasificación FoxPro original
+        # (para reclasificar después) + nota de duplicado, si las hubiera.
+        notas = []
+        if registro.get("observaciones"):
+            notas.append(str(registro["observaciones"]).strip())
+        if registro.get("subgrupo"):
+            notas.append(f"[FoxPro SUBGRUPO={str(registro['subgrupo']).strip()}]")
+        if registro.get("_nota"):
+            notas.append(registro["_nota"])
+        obs = " ".join(n for n in notas if n) or None
 
         return {
             "codigo_activo": codigo_activo,          # se preserva el original
@@ -664,9 +815,9 @@ class Migrador:
             "vida_util_meses": self._a_entero(registro.get("vida_util_meses"), 60),
             "departamento_id": dept_id,
             "cuenta_contable": cuenta,
-            "estado": estados.ESTADO_DEFECTO,        # '01' (equivale a "Activo")
+            "estado": estado,                        # código mapeado (01/06/07…)
             "origen": "COMPRA",
-            "observaciones": (str(registro["observaciones"]).strip() if registro.get("observaciones") else None),
+            "observaciones": obs,
             "creado_por": usuario_id,
         }
 

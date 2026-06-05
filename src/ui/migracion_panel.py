@@ -54,7 +54,10 @@ class MigracionPanelWidget(QWidget):
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._migrador = Migrador(db, usuario_id)
+        # Cuenta por defecto 2-1-214-01: el SUBGRUPO del FoxPro es inconsistente,
+        # así que todos los bienes migrados quedan en esa cuenta y se
+        # reclasifican luego desde SIGEMA (decisión confirmada con el usuario).
+        self._migrador = Migrador(db, usuario_id, cuenta_defecto="2-1-214-01")
         self._usuario_id = usuario_id
 
         self._ruta: str | None = None
@@ -72,11 +75,11 @@ class MigracionPanelWidget(QWidget):
 
         intro = QLabel(
             "<b>Migración de datos del sistema anterior</b><br>"
-            "Seleccione el archivo del sistema anterior FoxPro (.dbf) — "
-            "también acepta CSV/Excel/JSON —, valide su contenido y ejecute "
-            "la migración. Los bienes se insertan con "
-            "estado <b>01 (Operativo, en uso)</b> y origen <b>Compra</b>, "
-            "preservando el código original."
+            "Seleccione el archivo del sistema anterior FoxPro (.dbf, con su "
+            ".fpt al lado) — también acepta CSV/Excel/JSON —, valide y ejecute "
+            "la migración. Se preserva el código original, el estado real del "
+            "FoxPro y origen <b>Compra</b>; la cuenta contable se asigna "
+            "<b>2-1-214-01</b> por defecto (reclasificable luego en SIGEMA)."
         )
         intro.setWordWrap(True)
         layout.addWidget(intro)
