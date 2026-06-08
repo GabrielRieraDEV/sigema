@@ -1,0 +1,131 @@
+================================================================================
+  SIGEMA - INSTRUCCIONES PARA INSTALAR EL SERVIDOR EN LINUX (con Docker)
+  Instituto Autonomo Minas Bolivar
+================================================================================
+
+  Estas instrucciones son para la persona encargada de informatica. Se hacen
+  UNA SOLA VEZ, en la computadora Linux que guardara toda la informacion de
+  SIGEMA (el "servidor"). Las computadoras del personal (Windows) se conectan
+  a esta por la red local.
+
+
+  REQUISITOS DEL SERVIDOR
+--------------------------------------------------------------------------------
+  - Una computadora con Linux encendida durante el horario de trabajo.
+  - Conectada a la red de la oficina (de preferencia por cable).
+  - Tener instalado DOCKER y DOCKER COMPOSE.
+
+    Para instalar Docker rapido en Ubuntu/Debian:
+
+        curl -fsSL https://get.docker.com | sh
+
+    (Si quiere usar Docker sin "sudo", agregue su usuario al grupo docker:
+        sudo usermod -aG docker $USER
+     y vuelva a iniciar sesion.)
+
+
+  QUE CONTIENE ESTA CARPETA
+--------------------------------------------------------------------------------
+  - docker-compose.yml ............ Definicion del servidor de base de datos.
+  - .env.example .................. Plantilla de configuracion (contrasena).
+  - schema.sql .................... Estructura y datos iniciales (no editar).
+  - install_server_linux.sh ....... Instalador automatico.
+  - backup.sh ..................... Genera respaldos de la base de datos.
+  - INSTRUCCIONES_SERVIDOR_LINUX.txt . Este archivo.
+
+
+  PASOS PARA INSTALAR
+--------------------------------------------------------------------------------
+
+  1) Copie esta carpeta "servidor-linux" al servidor (por ejemplo a
+     /opt/sigema/ o a la carpeta del usuario).
+
+  2) Abra una terminal dentro de esa carpeta.
+
+  3) De permisos de ejecucion a los scripts:
+
+         chmod +x install_server_linux.sh backup.sh
+
+  4) Ejecute el instalador:
+
+         ./install_server_linux.sh
+
+     (Si Docker pide permisos, use:  sudo ./install_server_linux.sh )
+
+  5) Al terminar, la pantalla mostrara los datos del servidor, por ejemplo:
+
+         IP del servidor : 192.168.1.100
+         Puerto          : 5432
+         Base de datos   : sigema
+         Usuario BD      : sigema_user
+         Contrasena BD   : (una clave generada automaticamente)
+
+     >> ANOTE LA "IP DEL SERVIDOR" y la "CONTRASENA BD". Son los datos que
+        ira escribiendo en cada computadora del personal (ver
+        INSTRUCCIONES_CLIENTE.txt). La contrasena tambien queda guardada en
+        el archivo .env de esta carpeta.
+
+
+  CONTRASENA
+--------------------------------------------------------------------------------
+  El instalador genera una contrasena segura automaticamente. Si prefiere
+  poner una propia, antes del paso 4 haga:
+
+         cp .env.example .env
+         nano .env        # cambie POSTGRES_PASSWORD por su clave
+
+  y luego ejecute el instalador normalmente.
+
+
+  USUARIO INICIAL DE LA APLICACION
+--------------------------------------------------------------------------------
+  Para entrar a SIGEMA la primera vez (desde una computadora cliente):
+
+         Usuario:    admin
+         Contrasena: admin
+
+  Cambie esta contrasena despues del primer ingreso, en el modulo de Usuarios.
+
+
+  COMANDOS UTILES (desde esta carpeta)
+--------------------------------------------------------------------------------
+  Ver si esta corriendo .... docker compose ps
+  Ver registros / errores .. docker compose logs -f db
+  Detener el servidor ...... docker compose down      (los datos NO se borran)
+  Volver a encenderlo ...... docker compose up -d
+  Hacer un respaldo ........ ./backup.sh
+
+
+  RESPALDOS (MUY IMPORTANTE)
+--------------------------------------------------------------------------------
+  - Ejecute  ./backup.sh  para crear un respaldo manual (se guarda en la
+    carpeta "backups").
+
+  - Para respaldos AUTOMATICOS diarios a las 11 de la noche, agregue esta
+    linea con el comando  crontab -e :
+
+         0 23 * * * /ruta/a/servidor-linux/backup.sh >> /var/log/sigema_backup.log 2>&1
+
+  - Los datos de la base viven en un volumen de Docker llamado "sigema_pgdata"
+    y se conservan aunque se reinicie el servidor o se actualice el contenedor.
+
+
+  PROBLEMAS FRECUENTES
+--------------------------------------------------------------------------------
+  - "Los clientes no se conectan":
+        * Verifique que el servidor este encendido:  docker compose ps
+        * Confirme la IP del servidor:  hostname -I
+        * Revise que el puerto 5432 este abierto en el firewall.
+        * Confirme que escribio bien la IP y la contrasena en el cliente.
+
+  - "Cambio la IP del servidor":
+        Pida al encargado de red que asigne una IP FIJA al servidor, asi no
+        tendra que reconfigurar las computadoras cliente.
+
+  - "Quiero empezar de cero (BORRA TODOS LOS DATOS)":
+        docker compose down -v      # el -v elimina el volumen de datos
+        ./install_server_linux.sh   # vuelve a crear todo desde el esquema
+
+================================================================================
+  Fin de las instrucciones del servidor Linux.
+================================================================================

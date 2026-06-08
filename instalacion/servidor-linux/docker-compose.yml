@@ -1,0 +1,44 @@
+# =============================================================================
+# SIGEMA - Servidor de base de datos para LINUX con Docker
+#
+# Levanta PostgreSQL 15 con:
+#   - Datos persistentes (volumen 'pgdata'): la informacion NO se pierde al
+#     reiniciar el servidor ni al actualizar el contenedor.
+#   - Reinicio automatico (arranca solo cuando enciende el servidor).
+#   - El esquema y los datos iniciales se cargan en la PRIMERA creacion.
+#   - Acceso desde la red local (LAN) por el puerto 5432.
+#
+# Uso:
+#   cp .env.example .env      # y edite la contrasena dentro de .env
+#   docker compose up -d
+# =============================================================================
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: sigema_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sigema_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Debe definir POSTGRES_PASSWORD en el archivo .env}
+      POSTGRES_DB: ${POSTGRES_DB:-sigema}
+      TZ: America/Caracas
+      PGTZ: America/Caracas
+    ports:
+      # host:contenedor — se publica en todas las interfaces del servidor (LAN).
+      - "5432:5432"
+    volumes:
+      # Datos persistentes de PostgreSQL.
+      - pgdata:/var/lib/postgresql/data
+      # El esquema solo se ejecuta cuando el volumen esta vacio (primera vez).
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sigema_user} -d ${POSTGRES_DB:-sigema}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  pgdata:
+    name: sigema_pgdata

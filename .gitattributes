@@ -1,0 +1,21 @@
+# Normalización de fin de línea.
+# Por defecto, git decide automáticamente.
+* text=auto
+
+# Los scripts de shell y los archivos del servidor Linux DEBEN usar saltos de
+# línea LF (Unix); con CRLF de Windows, bash y Docker fallan.
+*.sh            text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+instalacion/servidor-linux/.env.example text eol=lf
+instalacion/servidor-linux/schema.sql   text eol=lf
+
+# Los scripts de PowerShell y de Windows usan CRLF.
+*.ps1           text eol=crlf
+
+# Archivos binarios: nunca tocar.
+*.png           binary
+*.ico           binary
+*.exe           binary
+*.pdf           binary
+*.dbf           binary
