@@ -13,6 +13,10 @@
 #   docker compose up -d
 # =============================================================================
 
+# El campo 'version' es necesario para docker-compose v1 (el que trae antiX
+# por apt). Docker Compose v2 lo ignora (solo muestra un aviso inofensivo).
+version: "3.8"
+
 services:
   db:
     image: postgres:15-alpine

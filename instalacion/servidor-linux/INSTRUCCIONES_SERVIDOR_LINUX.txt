@@ -15,13 +15,28 @@
   - Conectada a la red de la oficina (de preferencia por cable).
   - Tener instalado DOCKER y DOCKER COMPOSE.
 
-    Para instalar Docker rapido en Ubuntu/Debian:
+  INSTALAR DOCKER EN antiX (Debian, SIN systemd)
+  ..............................................................................
+  antiX no usa systemd, por eso Docker se instala y se maneja un poco distinto.
+  Abra una terminal y ejecute, UNA sola vez:
 
-        curl -fsSL https://get.docker.com | sh
+      sudo apt update
+      sudo apt install -y docker.io docker-compose
 
-    (Si quiere usar Docker sin "sudo", agregue su usuario al grupo docker:
-        sudo usermod -aG docker $USER
-     y vuelva a iniciar sesion.)
+  Inicie el servicio de Docker:
+
+      sudo service docker start
+
+  MUY IMPORTANTE - que Docker arranque solo cada vez que se enciende el equipo
+  (sin esto, SIGEMA no estaria disponible tras un reinicio):
+
+      sudo update-rc.d docker defaults
+
+  (Opcional) Para usar Docker sin escribir "sudo" cada vez:
+
+      sudo usermod -aG docker $USER
+
+  Luego cierre sesion y vuelva a entrar (o reinicie) para que tome efecto.
 
 
   QUE CONTIENE ESTA CARPETA

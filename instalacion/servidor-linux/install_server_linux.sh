@@ -38,8 +38,13 @@ echo "================================================================"
 paso "Verificando Docker..."
 if ! command -v docker >/dev/null 2>&1; then
     echo "ERROR: Docker no esta instalado."
-    echo "Instalelo con la guia oficial: https://docs.docker.com/engine/install/"
-    echo "En Ubuntu/Debian rapido:   curl -fsSL https://get.docker.com | sh"
+    echo ""
+    echo "En antiX / Debian (sin systemd), instale con apt:"
+    echo "    sudo apt update"
+    echo "    sudo apt install -y docker.io docker-compose"
+    echo "    sudo service docker start"
+    echo "    sudo update-rc.d docker defaults     # arrancar Docker al encender"
+    echo "    sudo usermod -aG docker \$USER        # usar docker sin sudo (re-login)"
     exit 1
 fi
 
@@ -54,6 +59,26 @@ else
     exit 1
 fi
 ok "Docker disponible ($COMPOSE)."
+
+# Verificar que el demonio de Docker este corriendo. En antiX no hay systemd,
+# asi que se intenta arrancar con el servicio SysVinit.
+if ! docker info >/dev/null 2>&1; then
+    aviso "El demonio de Docker no responde. Intentando iniciarlo..."
+    if command -v service >/dev/null 2>&1; then
+        sudo service docker start >/dev/null 2>&1 || true
+    elif command -v systemctl >/dev/null 2>&1; then
+        sudo systemctl start docker >/dev/null 2>&1 || true
+    fi
+    sleep 3
+    if ! docker info >/dev/null 2>&1; then
+        echo "ERROR: no se pudo conectar con el demonio de Docker."
+        echo "Inicielo manualmente y vuelva a ejecutar este script:"
+        echo "    sudo service docker start"
+        echo "Si usa docker sin sudo, agreguese al grupo:  sudo usermod -aG docker \$USER  (y reinicie sesion)"
+        exit 1
+    fi
+fi
+ok "Demonio de Docker en ejecucion."
 
 # ---------------------------------------------------------------------------
 # 2. Preparar el archivo .env
