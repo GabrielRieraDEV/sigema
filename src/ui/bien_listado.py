@@ -323,7 +323,13 @@ class BienListadoWidget(QWidget):
             self._actualizar_tabla()
 
     def _on_ver_editar(self) -> None:
-        """Abre el formulario en modo Ver con el bien seleccionado."""
+        """Abre el formulario del bien seleccionado.
+
+        Para el Administrador (permiso ``bienes.editar``) se abre en modo
+        edición; para los demás perfiles, en modo solo lectura.
+        """
+        from src.core.auth import Session
+
         bien_resumen = self._obtener_bien_seleccionado()
         if bien_resumen is None:
             return
@@ -338,15 +344,17 @@ class BienListadoWidget(QWidget):
             )
             return
 
+        puede_editar = Session.get_instance().tiene_permiso("bienes.editar")
         dialog = BienFormDialog(
             bien_service=self._service,
             usuario_id=self._usuario_id,
-            modo="ver",
+            modo="editar" if puede_editar else "ver",
             bien_data=bien,
             parent=self,
             donacion_service=self._donacion_service,
         )
-        dialog.exec()
+        if dialog.exec() and puede_editar:
+            self._actualizar_tabla()
 
     def _on_cambiar_estado(self) -> None:
         """Abre el diálogo de cambio de estado."""

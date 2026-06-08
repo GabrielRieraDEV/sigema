@@ -41,6 +41,9 @@ class BienFormDialog(QDialog):
         if self._modo == "ver":
             self._cargar_datos()
             self._bloquear_campos()
+        elif self._modo == "editar":
+            self._cargar_datos()
+            self._bloquear_no_editables()
         elif self._modo == "nuevo":
             try:
                 siguiente_activo = self._service.obtener_siguiente_codigo_activo()
@@ -51,7 +54,10 @@ class BienFormDialog(QDialog):
                 pass
 
     def _init_ui(self) -> None:
-        titulo = "Nuevo Bien Mueble" if self._modo == "nuevo" else "Detalle del Bien"
+        titulo = {
+            "nuevo": "Nuevo Bien Mueble",
+            "editar": "Editar Bien Mueble",
+        }.get(self._modo, "Detalle del Bien")
         self.setWindowTitle(titulo)
         self.resize(700, 750)
         self.setMinimumWidth(650)
@@ -201,6 +207,11 @@ class BienFormDialog(QDialog):
             btn_g.setStyleSheet(_btn_style("#1B7F3A", "#238C47"))
             btn_g.clicked.connect(self._on_guardar)
             bl.addWidget(btn_g)
+        if self._modo == "editar":
+            btn_e = QPushButton("💾 Guardar cambios")
+            btn_e.setStyleSheet(_btn_style("#1B7F3A", "#238C47"))
+            btn_e.clicked.connect(self._on_guardar_edicion)
+            bl.addWidget(btn_e)
         if self._modo == "ver":
             btn_stk = QPushButton("🏷 Imprimir Sticker")
             btn_stk.setStyleSheet(_btn_style("#5C6B73", "#6D7F88"))
@@ -372,6 +383,83 @@ class BienFormDialog(QDialog):
             w.setReadOnly(True)
             w.setButtonSymbols(QDateEdit.ButtonSymbols.NoButtons)
             w.setCalendarPopup(False)
+
+    def _bloquear_no_editables(self) -> None:
+        """Modo edición: bloquea solo los campos inmutables.
+
+        Quedan FIJOS (no editables): origen, código activo, código de nivel,
+        fecha de compra, precio, moneda, departamento y estado. El resto
+        (descripción, categoría, marca, modelo, serial, color, tipo, piezas,
+        orden de compra, cuenta contable, vida útil y observaciones) sí se
+        puede corregir.
+        """
+        # Origen
+        self._rb_compra.setEnabled(False)
+        self._rb_donacion.setEnabled(False)
+        # Identidad
+        self._txt_codigo_activo.setReadOnly(True)
+        self._txt_codigo_nivel.setReadOnly(True)
+        # Contabilidad / fecha
+        self._date_compra.setReadOnly(True)
+        self._date_compra.setButtonSymbols(QDateEdit.ButtonSymbols.NoButtons)
+        self._date_compra.setCalendarPopup(False)
+        self._spn_precio.setReadOnly(True)
+        self._spn_precio.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
+        self._cmb_moneda.setEnabled(False)
+        # Departamento (tiene su propio flujo de movimiento) y estado
+        self._cmb_departamento.setEnabled(False)
+        self._cmb_estado.setEnabled(False)
+        # Datos de la donación: se gestionan en su propio módulo.
+        for nombre in (
+            "_txt_donante", "_cmb_tipo_donante", "_txt_acta",
+            "_date_donacion", "_txt_obs_donacion",
+        ):
+            w = getattr(self, nombre, None)
+            if w is None:
+                continue
+            if hasattr(w, "setReadOnly"):
+                w.setReadOnly(True)
+            else:
+                w.setEnabled(False)
+
+    def _on_guardar_edicion(self) -> None:
+        """Guarda las correcciones de un bien existente (solo campos editables)."""
+        datos = {
+            "descripcion": self._txt_descripcion.toPlainText().strip(),
+            "categoria_id": self._cmb_categoria.currentData(),
+            "marca": self._txt_marca.text().strip() or None,
+            "modelo": self._txt_modelo.text().strip() or None,
+            "serial_bien": self._txt_serial.text().strip() or None,
+            "color": self._txt_color.text().strip() or None,
+            "tipo": self._cmb_tipo.currentText() or None,
+            "num_piezas": self._spn_piezas.value(),
+            "orden_compra": self._txt_orden_compra.text().strip() or None,
+            "cuenta_contable": self._cmb_cuenta.currentData(),
+            "vida_util_meses": self._spn_vida_util.value(),
+            "observaciones": self._txt_observaciones.toPlainText().strip() or None,
+        }
+        if not datos["descripcion"]:
+            QMessageBox.warning(self, "Validación", "Ingrese la descripción.")
+            return
+        if datos["categoria_id"] is None:
+            QMessageBox.warning(self, "Validación", "Seleccione una categoría.")
+            return
+        if datos["cuenta_contable"] is None:
+            QMessageBox.warning(self, "Validación", "Seleccione una cuenta contable.")
+            return
+
+        bien_id = self._bien_data.get("id")
+        if bien_id is None:
+            QMessageBox.warning(self, "Error", "No se pudo identificar el bien.")
+            return
+
+        ok, mensaje = self._service.actualizar_bien(
+            bien_id, datos, self._usuario_id)
+        if ok:
+            QMessageBox.information(self, "Bien actualizado", mensaje)
+            self.accept()
+        else:
+            QMessageBox.warning(self, "Error", mensaje)
 
     def _on_guardar(self) -> None:
         datos = {

@@ -16,7 +16,8 @@ from __future__ import annotations
 from typing import Any
 
 from src.core import estados
-from src.db.bien_repository import BienRepository
+from src.core.auditoria import registrar_auditoria
+from src.db.bien_repository import BienRepository, CAMPOS_EDITABLES
 from src.db.movimiento_repository import MovimientoRepository
 
 
@@ -301,6 +302,85 @@ class BienService:
 
         except Exception as exc:
             return (False, f"Error al actualizar el estado: {exc}")
+
+    # ------------------------------------------------------------------
+    # Editar bien (corrección de datos — solo Administrador)
+    # ------------------------------------------------------------------
+    def actualizar_bien(
+        self,
+        bien_id: int,
+        datos: dict[str, Any],
+        usuario_id: int,
+    ) -> tuple[bool, str]:
+        """Corrige los datos editables de un bien ya registrado.
+
+        Permite enmendar errores de carga o reclasificar la cuenta contable
+        sin alterar la identidad (código), la contabilidad (precio, fecha,
+        moneda), el estado ni el origen, que permanecen inmutables.
+
+        Cada cambio queda registrado en auditoría con sus valores anterior
+        y nuevo (RN-12). El cambio de estado y el de departamento tienen sus
+        propios flujos (no se hacen aquí).
+
+        Returns
+        -------
+        tuple[bool, str]
+            (éxito, mensaje)
+        """
+        bien_antes = self._bien_repo.buscar_por_id(bien_id)
+        if bien_antes is None:
+            return (False, f"No se encontró un bien con id {bien_id}.")
+
+        # --- Validaciones de los campos obligatorios editables ---
+        descripcion = (datos.get("descripcion") or "").strip()
+        if not descripcion:
+            return (False, "La descripción es obligatoria.")
+        if datos.get("categoria_id") is None:
+            return (False, "Debe seleccionar una categoría.")
+        if not datos.get("cuenta_contable"):
+            return (False, "Debe seleccionar una cuenta contable.")
+
+        try:
+            num_piezas = int(datos.get("num_piezas") or 1)
+        except (ValueError, TypeError):
+            return (False, "El número de piezas debe ser un entero válido.")
+        if num_piezas < 1:
+            return (False, "El número de piezas debe ser al menos 1.")
+
+        try:
+            vida_util = int(datos.get("vida_util_meses") or 60)
+        except (ValueError, TypeError):
+            return (False, "La vida útil debe expresarse en meses (número).")
+        if vida_util <= 0:
+            return (False, "La vida útil debe ser mayor que cero (RN-06).")
+
+        datos["descripcion"] = descripcion
+        datos["num_piezas"] = num_piezas
+        datos["vida_util_meses"] = vida_util
+
+        # Solo se persisten los campos permitidos (lista blanca del repo).
+        cambios = {c: datos[c] for c in CAMPOS_EDITABLES if c in datos}
+        if not cambios:
+            return (False, "No hay cambios que guardar.")
+
+        try:
+            ok = self._bien_repo.actualizar(bien_id, cambios)
+            if not ok:
+                return (False, "No se pudo actualizar el bien.")
+
+            # Auditoría: valores anteriores vs nuevos (solo campos editados).
+            datos_antes = {c: bien_antes.get(c) for c in cambios}
+            registrar_auditoria(
+                usuario_id,
+                "bien",
+                "ACTUALIZAR",
+                registro_id=bien_id,
+                datos_antes=datos_antes,
+                datos_despues=cambios,
+            )
+            return (True, "Bien actualizado correctamente.")
+        except Exception as exc:
+            return (False, f"Error al actualizar el bien: {exc}")
 
     # ------------------------------------------------------------------
     # Consultas (CU-02)

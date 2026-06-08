@@ -13,6 +13,27 @@ from src.db.connection import DBConnection
 from src.core.auditoria import auditar
 
 
+# Campos que el Administrador puede CORREGIR en un bien ya registrado.
+# Deliberadamente NO incluye: codigo_activo, codigo_nivel, fecha_compra,
+# precio_sin_iva, moneda, estado, origen, departamento_id (identidad,
+# contabilidad y trazabilidad permanecen inmutables; el estado y el
+# departamento tienen sus propios flujos de movimiento).
+CAMPOS_EDITABLES = [
+    "descripcion",
+    "categoria_id",
+    "marca",
+    "modelo",
+    "serial_bien",
+    "color",
+    "tipo",
+    "num_piezas",
+    "orden_compra",
+    "cuenta_contable",
+    "vida_util_meses",
+    "observaciones",
+]
+
+
 class BienRepository:
     """Acceso a datos de la tabla ``bien`` y catálogos relacionados."""
 
@@ -198,6 +219,29 @@ class BienRepository:
         """
         with self._db.get_cursor() as cur:
             cur.execute(sql, (estado, bien_id))
+            return cur.rowcount == 1
+
+    def actualizar(self, bien_id: int, datos: dict[str, Any]) -> bool:
+        """Actualiza los campos editables de un bien (corrección de datos).
+
+        Solo modifica las columnas incluidas en :data:`CAMPOS_EDITABLES` que
+        vengan en ``datos``. No toca código, precio, fecha, estado ni origen.
+        La auditoría (antes/después) la registra la capa de servicio.
+
+        Returns
+        -------
+        bool
+            True si se actualizó exactamente una fila.
+        """
+        columnas = [c for c in CAMPOS_EDITABLES if c in datos]
+        if not columnas:
+            return False
+        set_clause = ", ".join(f"{c} = %({c})s" for c in columnas)
+        params = {c: datos[c] for c in columnas}
+        params["id"] = bien_id
+        sql = f"UPDATE bien SET {set_clause} WHERE id = %(id)s"
+        with self._db.get_cursor() as cur:
+            cur.execute(sql, params)
             return cur.rowcount == 1
 
     def listar_por_departamento(
