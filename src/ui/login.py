@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.auth import Session
+from src.paths import resource_path
 
 
 class LoginDialog(QDialog):
@@ -44,7 +45,7 @@ class LoginDialog(QDialog):
         self.setWindowFlags(
             Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint
         )
-        self.setWindowIcon(QIcon("assets/icono .png"))
+        self.setWindowIcon(QIcon(str(resource_path("assets/icono.ico"))))
         self._intentos_fallidos = 0
         self._setup_ui()
 
@@ -58,7 +59,7 @@ class LoginDialog(QDialog):
 
         # ── Logo / Encabezado ────────────────────────────────────────────
         logo_lbl = QLabel()
-        pixmap = QPixmap("assets/logo.png")
+        pixmap = QPixmap(str(resource_path("assets/logo.png")))
         if not pixmap.isNull():
             logo_lbl.setPixmap(
                 pixmap.scaledToHeight(72, Qt.TransformationMode.SmoothTransformation)

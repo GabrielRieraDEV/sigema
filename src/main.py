@@ -33,6 +33,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.paths import resource_path
 from src.core.auth import Session
 from src.core.backup import ejecutar_backup
 from src.db.connection import DBConnection
@@ -126,7 +127,7 @@ class MainWindow(QMainWindow):
         nombre_completo = f"{usuario.get('nombre', '')} {usuario.get('apellido', '')}".strip()
 
         self.setWindowTitle("SIGEMA — Sistema de Gestión de Bienes Muebles")
-        self.setWindowIcon(QIcon("assets/icono .png"))
+        self.setWindowIcon(QIcon(str(resource_path("assets/icono.ico"))))
         self.resize(1100, 680)
 
         # ── Widget central ───────────────────────────────────────────────
@@ -138,7 +139,7 @@ class MainWindow(QMainWindow):
         # ── Header ───────────────────────────────────────────────────────
         header_layout = QHBoxLayout()
         logo_lbl = QLabel()
-        pixmap = QPixmap("assets/logo.png")
+        pixmap = QPixmap(str(resource_path("assets/logo.png")))
         if not pixmap.isNull():
             logo_lbl.setPixmap(
                 pixmap.scaledToHeight(70, Qt.TransformationMode.SmoothTransformation)

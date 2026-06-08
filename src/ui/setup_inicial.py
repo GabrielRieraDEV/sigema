@@ -32,6 +32,8 @@ from PyQt6.QtWidgets import (
     QFileDialog,
 )
 
+from src.paths import resource_path
+
 
 def _config_path() -> str:
     """Retorna la ruta donde se guarda config.ini.
@@ -68,7 +70,7 @@ class SetupInicialDialog(QDialog):
         self.setWindowFlags(
             Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint
         )
-        self.setWindowIcon(QIcon("assets/icono .png"))
+        self.setWindowIcon(QIcon(str(resource_path("assets/icono.ico"))))
         self._config_path = _config_path()
         self._setup_ui()
         self._cargar_valores_existentes()
@@ -84,7 +86,7 @@ class SetupInicialDialog(QDialog):
         # ── Header ──────────────────────────────────────────────────────
         header = QHBoxLayout()
         logo_lbl = QLabel()
-        pixmap = QPixmap("assets/logo.png")
+        pixmap = QPixmap(str(resource_path("assets/logo.png")))
         if not pixmap.isNull():
             logo_lbl.setPixmap(
                 pixmap.scaledToHeight(64, Qt.TransformationMode.SmoothTransformation)

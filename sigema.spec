@@ -22,6 +22,42 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 PROJECT_ROOT = os.path.abspath(os.getcwd())
 
+
+# ---------------------------------------------------------------------------
+# Runtime de Microsoft Visual C++ (vcruntime140*.dll / msvcp140*.dll)
+#
+# Qt6/PyQt6 depende de estas DLLs.  En una PC "limpia" (sin el Visual C++
+# Redistributable instalado) Qt no carga y aparece:
+#     ImportError: DLL load failed while importing QtCore
+# Las empaquetamos explícitamente para que el .exe sea autónomo.  Se buscan
+# primero en el propio PyQt6 (las trae el wheel) y luego en System32.
+# ---------------------------------------------------------------------------
+def _runtime_vc_dlls():
+    nombres = (
+        "vcruntime140.dll",
+        "vcruntime140_1.dll",
+        "msvcp140.dll",
+        "msvcp140_1.dll",
+        "msvcp140_2.dll",
+    )
+    dirs = []
+    try:
+        import PyQt6
+        dirs.append(os.path.join(os.path.dirname(PyQt6.__file__), "Qt6", "bin"))
+    except Exception:
+        pass
+    dirs.append(os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32"))
+
+    encontrados = {}
+    for d in dirs:
+        for n in nombres:
+            if n in encontrados:
+                continue
+            ruta = os.path.join(d, n)
+            if os.path.isfile(ruta):
+                encontrados[n] = (ruta, ".")  # destino: raíz del bundle
+    return list(encontrados.values())
+
 # ---------------------------------------------------------------------------
 # Recursos a empaquetar dentro del .exe
 # ---------------------------------------------------------------------------
@@ -64,7 +100,7 @@ block_cipher = None
 a = Analysis(
     ["src/main.py"],
     pathex=[PROJECT_ROOT],
-    binaries=[],
+    binaries=_runtime_vc_dlls(),
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
@@ -91,7 +127,9 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    # UPX DESACTIVADO: comprimir las DLLs de Qt provoca errores
+    # "DLL load failed while importing QtCore" en PCs limpias.
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,            # --windowed (sin ventana de consola)

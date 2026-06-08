@@ -53,7 +53,11 @@ ROWS = 6
 PER_SHEET = COLS * ROWS
 
 INSTITUCION = "INSTITUTO AUTÓNOMO MINAS BOLÍVAR"
-LOGO_PATH = "assets/logo.png"
+try:
+    from src.paths import resource_path
+    LOGO_PATH = str(resource_path("assets/logo.png"))
+except Exception:
+    LOGO_PATH = "assets/logo.png"
 
 # Longitud máxima de la línea de características para no desbordar.
 _MAX_CARACTERISTICAS = 90
