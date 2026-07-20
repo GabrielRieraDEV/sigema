@@ -178,13 +178,8 @@ class BM2Movimientos(BMBase):
         )
         elements.append(tabla)
 
-        # Firmas
-        elements.extend(
-            self.crear_firma("Jefe de la Unidad de Trabajo")
-        )
-        elements.extend(
-            self.crear_firma("Dirección de Administración")
-        )
+        # Firmas al pie (Realizado / Revisado / Conformado / Aprobado)
+        elements.extend(self.crear_bloque_firmas())
 
         doc.build(elements)
 

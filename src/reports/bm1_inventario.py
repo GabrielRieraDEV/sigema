@@ -144,10 +144,8 @@ class BM1Inventario(BMBase):
         )
         elements.append(tabla)
 
-        # Firma
-        elements.extend(
-            self.crear_firma("JEFE DE LA UNIDAD DE TRABAJO")
-        )
+        # Firmas al pie (Realizado / Revisado / Conformado / Aprobado)
+        elements.extend(self.crear_bloque_firmas())
 
         # Construir PDF
         doc.build(elements)

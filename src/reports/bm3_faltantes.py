@@ -183,8 +183,8 @@ class BM3Faltantes(BMBase):
             self._crear_bloque_responsable(faltantes)
         )
 
-        # Firma con sello
-        elements.extend(self._crear_firma_con_sello())
+        # Firmas al pie (Realizado / Revisado / Conformado / Aprobado)
+        elements.extend(self.crear_bloque_firmas())
 
         doc.build(elements)
 
@@ -242,31 +242,3 @@ class BM3Faltantes(BMBase):
 
         return [Spacer(1, 6 * mm), resp_table]
 
-    def _crear_firma_con_sello(self) -> list:
-        """Crea firma con espacio para sello."""
-        firma_data = [
-            [
-                Paragraph(
-                    "<b>Usuario responsable del (los) bien(es):</b>",
-                    self.style_body,
-                ),
-                Paragraph("<b>Firma:</b> _______________", self.style_body),
-                Paragraph("<b>Sello:</b>", self.style_body),
-            ],
-        ]
-        firma_table = Table(
-            firma_data,
-            colWidths=[
-                USABLE_WIDTH * 0.40,
-                USABLE_WIDTH * 0.30,
-                USABLE_WIDTH * 0.30,
-            ],
-        )
-        firma_table.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
-            ("TOPPADDING", (0, 0), (-1, -1), 15),
-            ("BOX", (2, 0), (2, 0), 0.5, COLOR_BORDER),
-            ("BOTTOMPADDING", (2, 0), (2, 0), 30),
-        ]))
-
-        return [Spacer(1, 10 * mm), firma_table]

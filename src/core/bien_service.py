@@ -304,7 +304,7 @@ class BienService:
             return (False, f"Error al actualizar el estado: {exc}")
 
     # ------------------------------------------------------------------
-    # Editar bien (corrección de datos — solo Administrador)
+    # Editar bien (corrección de datos — Administrador y Almacenista)
     # ------------------------------------------------------------------
     def actualizar_bien(
         self,

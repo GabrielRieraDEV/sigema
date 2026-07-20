@@ -166,7 +166,7 @@ class LoginDialog(QDialog):
         root.addStretch()
 
         # ── Versión ──────────────────────────────────────────────────────
-        ver_lbl = QLabel("v1.0 — División de Control de Bienes")
+        ver_lbl = QLabel("v1.2.0 — División de Control de Bienes")
         ver_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ver_lbl.setStyleSheet("font-size:9px; color:#aaa;")
         root.addWidget(ver_lbl)
