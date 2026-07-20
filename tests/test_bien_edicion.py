@@ -6,7 +6,7 @@ Verifica:
 - Que los campos inmutables (código, precio, estado) NO cambien aunque se
   envíen.
 - Que el cambio quede en auditoría (RN-12).
-- Que solo el Administrador tenga el permiso 'bienes.editar' (RN-10/RN-11).
+- Que Administrador y Almacenista tengan 'bienes.editar', y Consulta no.
 """
 
 from __future__ import annotations
@@ -104,7 +104,7 @@ def test_actualizar_bien_registra_auditoria(
     )
 
 
-def test_solo_admin_puede_editar(crear_usuario):
+def test_quien_puede_editar(crear_usuario):
     crear_usuario("adm_e", "clave_segura", "Administrador")
     crear_usuario("alm_e", "clave_segura", "Almacenista")
     crear_usuario("con_e", "clave_segura", "Consulta")
@@ -114,7 +114,7 @@ def test_solo_admin_puede_editar(crear_usuario):
     Session.logout()
 
     Session.login("alm_e", "clave_segura")
-    assert Session.get_instance().tiene_permiso("bienes.editar") is False
+    assert Session.get_instance().tiene_permiso("bienes.editar") is True
     Session.logout()
 
     Session.login("con_e", "clave_segura")

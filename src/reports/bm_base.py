@@ -6,7 +6,7 @@ tabla y configuración de página.  Todos los generadores BM-1 al BM-4
 heredan de esta clase.
 
 Configuración según SIGEMA_Formularios_BM.md:
-- Página: Letter (21.59 × 27.94 cm), orientación portrait
+- Página: Letter horizontal / landscape (27.94 × 21.59 cm)
 - Márgenes: 1.5 cm laterales, 2.0 cm superior e inferior
 - Fuentes: Helvetica-Bold (encabezados), Helvetica (datos)
 - Colores: azul oscuro header, gris alterno filas, azul claro totales
@@ -18,11 +18,11 @@ from datetime import date
 from typing import Any
 
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib.units import cm, mm
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import (
-    SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer,
+    SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, KeepTogether,
 )
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
@@ -31,7 +31,8 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 # Constantes de diseño
 # ======================================================================
 
-PAGE_WIDTH, PAGE_HEIGHT = letter  # 21.59 cm × 27.94 cm
+PAGE_SIZE = landscape(letter)
+PAGE_WIDTH, PAGE_HEIGHT = PAGE_SIZE  # 27.94 cm × 21.59 cm (horizontal)
 
 MARGIN_LEFT = 1.5 * cm
 MARGIN_RIGHT = 1.5 * cm
@@ -340,27 +341,38 @@ class BMBase:
     # ------------------------------------------------------------------
     # Firmas
     # ------------------------------------------------------------------
-    def crear_firma(self, etiqueta: str) -> list:
-        """Crea un bloque de firma con línea y etiqueta."""
-        firma_data = [
-            ["", ""],
-            [
-                Paragraph(
-                    f"<b>{etiqueta}:</b>",
-                    self.style_body,
-                ),
-                "______________________________________",
-            ],
+    def crear_bloque_firmas(self) -> list:
+        """Bloque de 4 firmas al pie de la planilla (formulario BM oficial):
+        Realizado / Revisado / Conformado / Aprobado por.
+        """
+        etiquetas = [
+            "REALIZADO POR:", "REVISADO POR:",
+            "CONFORMADO POR:", "APROBADO POR:",
         ]
-        firma_table = Table(
-            firma_data,
-            colWidths=[USABLE_WIDTH * 0.45, USABLE_WIDTH * 0.55],
+        campos = (
+            "Nombre y Apellido: ______________________<br/><br/>"
+            "Cédula de Identidad N°: _________________<br/><br/>"
+            "Cargo: __________________________________<br/><br/>"
+            "Firma y Sello:"
         )
-        firma_table.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
-            ("TOPPADDING", (0, 0), (-1, -1), 12),
+
+        encabezados = [
+            Paragraph(f"<b>{e}</b>", self.style_body_center) for e in etiquetas
+        ]
+        cuerpos = [Paragraph(campos, self.style_small) for _ in etiquetas]
+
+        ancho = USABLE_WIDTH / 4
+        firmas = Table([encabezados, cuerpos], colWidths=[ancho] * 4)
+        firmas.setStyle(TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, COLOR_BORDER),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 1), (-1, 1), 22),  # espacio para firma/sello
+            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
         ]))
-        return [Spacer(1, 10 * mm), firma_table]
+
+        return [Spacer(1, 8 * mm), KeepTogether(firmas)]
 
     # ------------------------------------------------------------------
     # Documento base
@@ -369,7 +381,7 @@ class BMBase:
         """Crea el documento PDF base con la configuración de página."""
         return SimpleDocTemplate(
             buffer,
-            pagesize=letter,
+            pagesize=PAGE_SIZE,
             leftMargin=MARGIN_LEFT,
             rightMargin=MARGIN_RIGHT,
             topMargin=MARGIN_TOP,

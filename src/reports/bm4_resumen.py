@@ -266,9 +266,4 @@ class BM4Resumen(BMBase):
             ("BOX", (1, 0), (1, 0), 0.5, COLOR_BORDER),
         ]))
 
-        firma_elements = self.crear_firma(
-            "Firma del Jefe Responsable de la Unidad de Trabajo "
-            "o Departamento"
-        )
-
-        return [sello_table] + firma_elements
+        return [sello_table] + self.crear_bloque_firmas()

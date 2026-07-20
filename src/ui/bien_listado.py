@@ -325,8 +325,8 @@ class BienListadoWidget(QWidget):
     def _on_ver_editar(self) -> None:
         """Abre el formulario del bien seleccionado.
 
-        Para el Administrador (permiso ``bienes.editar``) se abre en modo
-        edición; para los demás perfiles, en modo solo lectura.
+        Con el permiso ``bienes.editar`` (Administrador y Almacenista) se
+        abre en modo edición; para los demás perfiles, en modo solo lectura.
         """
         from src.core.auth import Session
 

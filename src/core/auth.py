@@ -66,7 +66,9 @@ _PERMISOS: dict[str, set[str]] = {
     "Almacenista": {
         "bienes.ver",
         "bienes.crear",
+        "bienes.editar",
         "bienes.editar_estado",
+        "bienes.vida_util.editar",
         "formularios.ver",
         "formularios.generar",
     },
