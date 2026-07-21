@@ -13,12 +13,14 @@ from src.db.connection import DBConnection
 from src.core.auditoria import auditar
 
 
-# Campos que el Administrador puede CORREGIR en un bien ya registrado.
-# Deliberadamente NO incluye: codigo_activo, codigo_nivel, fecha_compra,
-# precio_sin_iva, moneda, estado, origen, departamento_id (identidad,
-# contabilidad y trazabilidad permanecen inmutables; el estado y el
-# departamento tienen sus propios flujos de movimiento).
+# Campos que se pueden CORREGIR en un bien ya registrado.
+# Se permite enmendar cualquier dato de carga (incluidos código, precio,
+# fecha, moneda, departamento y estado) por si se registró mal.
+# NO incluye 'origen' (compra/donación): cambiarlo reestructura los
+# registros de la tabla donacion y tiene su propio flujo.
 CAMPOS_EDITABLES = [
+    "codigo_activo",
+    "codigo_nivel",
     "descripcion",
     "categoria_id",
     "marca",
@@ -28,8 +30,13 @@ CAMPOS_EDITABLES = [
     "tipo",
     "num_piezas",
     "orden_compra",
-    "cuenta_contable",
+    "fecha_compra",
+    "precio_sin_iva",
+    "moneda",
     "vida_util_meses",
+    "departamento_id",
+    "cuenta_contable",
+    "estado",
     "observaciones",
 ]
 
@@ -225,7 +232,7 @@ class BienRepository:
         """Actualiza los campos editables de un bien (corrección de datos).
 
         Solo modifica las columnas incluidas en :data:`CAMPOS_EDITABLES` que
-        vengan en ``datos``. No toca código, precio, fecha, estado ni origen.
+        vengan en ``datos`` (todo salvo el origen).
         La auditoría (antes/después) la registra la capa de servicio.
 
         Returns

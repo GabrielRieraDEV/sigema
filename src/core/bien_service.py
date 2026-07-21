@@ -312,15 +312,14 @@ class BienService:
         datos: dict[str, Any],
         usuario_id: int,
     ) -> tuple[bool, str]:
-        """Corrige los datos editables de un bien ya registrado.
+        """Corrige los datos de un bien ya registrado.
 
-        Permite enmendar errores de carga o reclasificar la cuenta contable
-        sin alterar la identidad (código), la contabilidad (precio, fecha,
-        moneda), el estado ni el origen, que permanecen inmutables.
+        Permite enmendar cualquier error de carga: código, descripción,
+        clasificación, precio, fecha, moneda, departamento y estado. Solo el
+        origen (compra/donación) queda fijo, porque tiene su propio flujo.
 
         Cada cambio queda registrado en auditoría con sus valores anterior
-        y nuevo (RN-12). El cambio de estado y el de departamento tienen sus
-        propios flujos (no se hacen aquí).
+        y nuevo (RN-12).
 
         Returns
         -------
@@ -339,6 +338,17 @@ class BienService:
             return (False, "Debe seleccionar una categoría.")
         if not datos.get("cuenta_contable"):
             return (False, "Debe seleccionar una cuenta contable.")
+
+        # RN-01: si se corrige el código activo, no puede chocar con otro bien.
+        codigo_nuevo = (datos.get("codigo_activo") or "").strip()
+        if codigo_nuevo and codigo_nuevo != bien_antes.get("codigo_activo"):
+            otro = self._bien_repo.buscar_por_codigo(codigo_nuevo)
+            if otro is not None:
+                return (
+                    False,
+                    f"Ya existe otro bien con el código activo "
+                    f"'{codigo_nuevo}'. El código debe ser único (RN-01).",
+                )
 
         try:
             num_piezas = int(datos.get("num_piezas") or 1)

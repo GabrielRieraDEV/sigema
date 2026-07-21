@@ -385,30 +385,16 @@ class BienFormDialog(QDialog):
             w.setCalendarPopup(False)
 
     def _bloquear_no_editables(self) -> None:
-        """Modo edición: bloquea solo los campos inmutables.
+        """Modo edición: todos los datos del bien se pueden corregir.
 
-        Quedan FIJOS (no editables): origen, código activo, código de nivel,
-        fecha de compra, precio, moneda, departamento y estado. El resto
-        (descripción, categoría, marca, modelo, serial, color, tipo, piezas,
-        orden de compra, cuenta contable, vida útil y observaciones) sí se
-        puede corregir.
+        Solo queda fijo el origen (compra/donación) y los datos de la
+        donación, que se gestionan en su propio módulo. El resto —incluidos
+        código, fecha, precio, moneda, departamento y estado— es corregible
+        por si se registró mal.
         """
         # Origen
         self._rb_compra.setEnabled(False)
         self._rb_donacion.setEnabled(False)
-        # Identidad
-        self._txt_codigo_activo.setReadOnly(True)
-        self._txt_codigo_nivel.setReadOnly(True)
-        # Contabilidad / fecha
-        self._date_compra.setReadOnly(True)
-        self._date_compra.setButtonSymbols(QDateEdit.ButtonSymbols.NoButtons)
-        self._date_compra.setCalendarPopup(False)
-        self._spn_precio.setReadOnly(True)
-        self._spn_precio.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
-        self._cmb_moneda.setEnabled(False)
-        # Departamento (tiene su propio flujo de movimiento) y estado
-        self._cmb_departamento.setEnabled(False)
-        self._cmb_estado.setEnabled(False)
         # Datos de la donación: se gestionan en su propio módulo.
         for nombre in (
             "_txt_donante", "_cmb_tipo_donante", "_txt_acta",
@@ -423,8 +409,10 @@ class BienFormDialog(QDialog):
                 w.setEnabled(False)
 
     def _on_guardar_edicion(self) -> None:
-        """Guarda las correcciones de un bien existente (solo campos editables)."""
+        """Guarda las correcciones de un bien existente (todos los datos)."""
         datos = {
+            "codigo_activo": self._txt_codigo_activo.text().strip(),
+            "codigo_nivel": self._txt_codigo_nivel.text().strip(),
             "descripcion": self._txt_descripcion.toPlainText().strip(),
             "categoria_id": self._cmb_categoria.currentData(),
             "marca": self._txt_marca.text().strip() or None,
@@ -434,15 +422,29 @@ class BienFormDialog(QDialog):
             "tipo": self._cmb_tipo.currentText() or None,
             "num_piezas": self._spn_piezas.value(),
             "orden_compra": self._txt_orden_compra.text().strip() or None,
+            "fecha_compra": self._date_compra.date().toString("yyyy-MM-dd"),
+            "precio_sin_iva": self._spn_precio.value(),
+            "moneda": self._cmb_moneda.currentText(),
             "cuenta_contable": self._cmb_cuenta.currentData(),
             "vida_util_meses": self._spn_vida_util.value(),
+            "departamento_id": self._cmb_departamento.currentData(),
+            "estado": self._cmb_estado.currentData(),
             "observaciones": self._txt_observaciones.toPlainText().strip() or None,
         }
+        if not datos["codigo_activo"]:
+            QMessageBox.warning(self, "Validación", "Ingrese el código activo.")
+            return
+        if not datos["codigo_nivel"]:
+            QMessageBox.warning(self, "Validación", "Ingrese el código de nivel.")
+            return
         if not datos["descripcion"]:
             QMessageBox.warning(self, "Validación", "Ingrese la descripción.")
             return
         if datos["categoria_id"] is None:
             QMessageBox.warning(self, "Validación", "Seleccione una categoría.")
+            return
+        if datos["departamento_id"] is None:
+            QMessageBox.warning(self, "Validación", "Seleccione un departamento.")
             return
         if datos["cuenta_contable"] is None:
             QMessageBox.warning(self, "Validación", "Seleccione una cuenta contable.")
